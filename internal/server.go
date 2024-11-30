@@ -7,14 +7,18 @@ import (
 	"net/http"
 
 	"github.com/ghaniswara/dating-app/internal/datastore/postgres"
+	userRepo "github.com/ghaniswara/dating-app/internal/repository/user"
+	routesV1 "github.com/ghaniswara/dating-app/internal/routes/v1"
+	authUseCase "github.com/ghaniswara/dating-app/internal/usecase/auth"
 	"github.com/labstack/echo"
 	"gorm.io/gorm"
 )
 
 type Server struct {
-	writer     io.Writer
-	httpServer *http.Server
-	database   *gorm.DB
+	writer      io.Writer
+	httpServer  *http.Server
+	database    *gorm.DB
+	authUseCase authUseCase.IAuthUseCase
 }
 
 func NewServer(ctx context.Context, w io.Writer) *Server {
@@ -34,12 +38,16 @@ func NewServer(ctx context.Context, w io.Writer) *Server {
 		ctx.Err()
 	}
 
+	userRepo := userRepo.New(database)
+	authUC := authUseCase.New(userRepo)
+
 	server := &Server{
 		httpServer: &http.Server{
 			Addr:    ":8080",
 			Handler: e,
 		},
-		database: database,
+		database:    database,
+		authUseCase: authUC,
 	}
 
 	server.RegisterRoutes(e)
@@ -47,7 +55,8 @@ func NewServer(ctx context.Context, w io.Writer) *Server {
 }
 
 func (s *Server) RegisterRoutes(e *echo.Echo) {
-	e.GET("/healthz", s.handleHealthCheck)
+	e.GET("/health", s.handleHealthCheck)
+	routesV1.InitV1Routes(e, &s.authUseCase)
 }
 
 func (s *Server) StartServer() error {
