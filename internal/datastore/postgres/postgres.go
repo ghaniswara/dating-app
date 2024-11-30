@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"fmt"
 	"log"
 
 	"gorm.io/driver/postgres"
@@ -8,7 +9,8 @@ import (
 )
 
 // InitializeDB initializes the PostgreSQL database connection and returns it
-func InitializeDB(dsn string) (*gorm.DB, error) {
+func InitializeDB(username, password, dbName, host, port string) (*gorm.DB, error) {
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable", host, username, password, dbName, port)
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)

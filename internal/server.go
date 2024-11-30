@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"os/signal"
+	"time"
 
+	"github.com/ghaniswara/dating-app/internal/config"
 	"github.com/ghaniswara/dating-app/internal/datastore/postgres"
 	userRepo "github.com/ghaniswara/dating-app/internal/repository/user"
 	routesV1 "github.com/ghaniswara/dating-app/internal/routes/v1"
@@ -14,6 +18,31 @@ import (
 	"gorm.io/gorm"
 )
 
+func Run(ctx context.Context, w io.Writer, args []string) error {
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
+	defer cancel()
+	server := NewServer(ctx, w, args[0])
+
+	go func() {
+		if err := server.StartServer(); err != nil && err != http.ErrServerClosed {
+			fmt.Fprintf(os.Stderr, "server error: %v\n", err)
+		}
+	}()
+
+	<-ctx.Done()
+
+	// Graceful shutdown
+	fmt.Fprintf(w, "\nGracefully shutting down")
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		return fmt.Errorf("server shutdown failed: %w", err)
+	}
+
+	return nil
+}
+
 type Server struct {
 	writer      io.Writer
 	httpServer  *http.Server
@@ -21,7 +50,7 @@ type Server struct {
 	authUseCase authUseCase.IAuthUseCase
 }
 
-func NewServer(ctx context.Context, w io.Writer) *Server {
+func NewServer(ctx context.Context, w io.Writer, env string) *Server {
 	e := echo.New()
 
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -31,7 +60,20 @@ func NewServer(ctx context.Context, w io.Writer) *Server {
 		}
 	})
 
-	database, err := postgres.InitializeDB("")
+	config, err := config.NewConfig(env)
+
+	if err != nil {
+		fmt.Fprint(w, "Error loading configurations:", err)
+		ctx.Err()
+	}
+
+	database, err := postgres.InitializeDB(
+		config.Get("POSTGRES_USER"),
+		config.Get("POSTGRES_PASSWORD"),
+		config.Get("POSTGRES_DB_NAME"),
+		config.Get("POSTGRES_HOST"),
+		config.Get("POSTGRES_PORT"),
+	)
 
 	if err != nil {
 		fmt.Fprint(w, "Error initializing database:", err)
