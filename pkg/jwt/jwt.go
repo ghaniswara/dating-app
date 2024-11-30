@@ -1,4 +1,4 @@
-package utils
+package jwt
 
 import (
 	"errors"
@@ -9,14 +9,14 @@ import (
 
 var secretKey = []byte("your_secret_key") // Change this to a secure key
 
-type jwtCustomClaims struct {
+type jwtUserDataClaims struct {
 	jwt.RegisteredClaims
 	ID       string `json:"id"`
 	Username string `json:"username"`
 }
 
 func CreateToken(name, username string) (string, error) {
-	claims := jwtCustomClaims{
+	claims := jwtUserDataClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 		},
@@ -28,8 +28,8 @@ func CreateToken(name, username string) (string, error) {
 	return token.SignedString(secretKey)
 }
 
-func ValidateToken(tokenString string) (*jwtCustomClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &jwtCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
+func ValidateToken(tokenString string) (*jwtUserDataClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &jwtUserDataClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return secretKey, nil
 	})
 
@@ -37,7 +37,7 @@ func ValidateToken(tokenString string) (*jwtCustomClaims, error) {
 		return nil, errors.New("invalid token")
 	}
 
-	claims, ok := token.Claims.(*jwtCustomClaims)
+	claims, ok := token.Claims.(*jwtUserDataClaims)
 	if !ok {
 		return nil, errors.New("could not parse claims")
 	}

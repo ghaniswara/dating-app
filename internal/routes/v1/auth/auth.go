@@ -5,7 +5,7 @@ import (
 
 	"github.com/ghaniswara/dating-app/internal/entity"
 	authUseCase "github.com/ghaniswara/dating-app/internal/usecase/auth"
-	"github.com/ghaniswara/dating-app/pkg/serializer"
+	serializer "github.com/ghaniswara/dating-app/pkg/http_util"
 	"github.com/labstack/echo"
 )
 

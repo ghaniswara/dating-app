@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/ghaniswara/dating-app/internal/entity"
-	"github.com/ghaniswara/dating-app/internal/repository"
+	userRepo "github.com/ghaniswara/dating-app/internal/repository/user"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -13,10 +13,10 @@ type iProfileUseCase interface {
 }
 
 type profileUseCase struct {
-	userRepo repository.UserRepo
+	userRepo userRepo.UserRepo
 }
 
-func NewProfileUseCase(userRepo *repository.UserRepo) iProfileUseCase {
+func NewProfileUseCase(userRepo *userRepo.UserRepo) iProfileUseCase {
 	return &profileUseCase{
 		userRepo: *userRepo,
 	}
