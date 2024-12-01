@@ -8,7 +8,7 @@ import (
 )
 
 type IUserRepo interface {
-	CreateUser(ctx context.Context, user entity.User) (*entity.User, error)
+	CreateUser(ctx context.Context, user *entity.User) (*entity.User, error)
 	GetUserByID(ctx context.Context, id int) (*entity.User, error)
 	GetUserByUnameOrEmail(ctx context.Context, email, uname string) (*entity.User, error)
 }
@@ -23,9 +23,9 @@ func New(db *gorm.DB) IUserRepo {
 	}
 }
 
-func (r *UserRepo) CreateUser(ctx context.Context, user entity.User) (*entity.User, error) {
+func (r *UserRepo) CreateUser(ctx context.Context, user *entity.User) (*entity.User, error) {
 	result := r.db.WithContext(ctx).Create(&user)
-	return &user, result.Error
+	return user, result.Error
 }
 
 func (r *UserRepo) GetUserByID(ctx context.Context, id int) (*entity.User, error) {

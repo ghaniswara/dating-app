@@ -29,6 +29,7 @@ func SignUpHandler(c echo.Context, authCase *authUseCase.IAuthUseCase) error {
 	if err != nil {
 		return serializer.Encode(c, http.StatusInternalServerError, map[string]string{"error": "failed to sign up"})
 	}
+
 	return serializer.Encode(c, http.StatusOK, map[string]string{"message": "Sign-up successful"})
 }
 

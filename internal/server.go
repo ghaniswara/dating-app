@@ -44,7 +44,6 @@ func Run(ctx context.Context, w io.Writer, args []string) error {
 }
 
 type Server struct {
-	writer      io.Writer
 	httpServer  *http.Server
 	database    *gorm.DB
 	authUseCase authUseCase.IAuthUseCase
@@ -83,9 +82,11 @@ func NewServer(ctx context.Context, w io.Writer, env string) *Server {
 	userRepo := userRepo.New(database)
 	authUC := authUseCase.New(userRepo)
 
+	var PORT = config.Get("PORT")
+
 	server := &Server{
 		httpServer: &http.Server{
-			Addr:    ":8080",
+			Addr:    ":" + PORT,
 			Handler: e,
 		},
 		database:    database,
@@ -102,7 +103,7 @@ func (s *Server) RegisterRoutes(e *echo.Echo) {
 }
 
 func (s *Server) StartServer() error {
-	fmt.Fprintf(s.writer, "Server starting on %s\n", s.httpServer.Addr)
+	fmt.Printf("Server starting on %s\n", s.httpServer.Addr)
 	return s.httpServer.ListenAndServe()
 }
 

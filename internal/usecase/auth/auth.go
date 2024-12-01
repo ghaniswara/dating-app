@@ -31,13 +31,18 @@ func (p *authUseCase) SignupUser(ctx context.Context, authData entity.CreateUser
 	}
 	authData.Password = string(hashedPassword)
 
-	var user entity.User
+	user := entity.User{
+		Name:     authData.Name,
+		Email:    authData.Email,
+		Username: authData.Username,
+		Password: authData.Password,
+	}
 
-	return p.userRepo.CreateUser(ctx, user)
+	return p.userRepo.CreateUser(ctx, &user)
 }
 
 func (p *authUseCase) SignIn(ctx context.Context, email, username, password string) (string, error) {
-	user, err := p.userRepo.GetUserByUnameOrEmail(ctx, username, password)
+	user, err := p.userRepo.GetUserByUnameOrEmail(ctx, email, username)
 	if err != nil {
 		return "", err
 	}
@@ -46,7 +51,7 @@ func (p *authUseCase) SignIn(ctx context.Context, email, username, password stri
 		return "", err
 	}
 
-	token, err := jwt.CreateToken(user.UserName, user.Email)
+	token, err := jwt.CreateToken(user.Username, user.Email)
 	if err != nil {
 		return "", err
 	}
