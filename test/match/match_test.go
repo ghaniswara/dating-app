@@ -58,12 +58,13 @@ func TestLike(t *testing.T) {
 		t.Fatalf("Failed to create token: %s", err)
 	}
 
-	var OutcomeCount map[string]int = make(map[string]int)
+	var OutcomeCount map[entity.Outcome]int = make(map[entity.Outcome]int)
 
 	for _, v := range users {
 		response := createMatchRequest(t, token, v.ID, entity.ActionLike)
+		t.Logf("Response: %v", response)
 
-		OutcomeCount[response.OutcomeEnum.String()]++
+		OutcomeCount[response.OutcomeEnum]++
 	}
 
 	// Check with repository
@@ -91,7 +92,7 @@ func TestLike(t *testing.T) {
 	}
 
 	assert.Equal(t, len(likedProfiles), 5)
-	assert.Equal(t, OutcomeCount[entity.ActionLike.String()], 5)
+	assert.Equal(t, OutcomeCount[entity.OutcomeNoLike], 5)
 	assert.Equal(t, likedCount, 5)
 	assert.Equal(t, len(swipeTransaction), 5)
 

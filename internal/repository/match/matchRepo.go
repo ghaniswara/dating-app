@@ -54,6 +54,10 @@ func (m *MatchRepo) GetTodayLikesCount(ctx context.Context, userID int) (int, er
 		m.rdb.Set(countKey, count, getTTL())
 	}
 
+	if err != nil && err != redis.Nil {
+		return 0, err
+	}
+
 	return count, nil
 }
 
@@ -137,6 +141,8 @@ func (m *MatchRepo) CreateSwipe(ctx context.Context, userID int, likedToUserID i
 	}
 
 	// Create like transaction for the user
+	isMatched := action == entity.ActionLike && pair.ID != 0
+
 	res := m.db.WithContext(ctx).
 		Model(&entity.SwipeTransaction{}).
 		Create(&entity.SwipeTransaction{
@@ -145,7 +151,7 @@ func (m *MatchRepo) CreateSwipe(ctx context.Context, userID int, likedToUserID i
 			Date:      time.Now(),
 			Action:    action,
 			Time:      time.Now(),
-			IsMatched: action == entity.ActionLike && pair != nil,
+			IsMatched: isMatched,
 		})
 
 	if res.Error != nil {
@@ -159,12 +165,12 @@ func (m *MatchRepo) CreateSwipe(ctx context.Context, userID int, likedToUserID i
 		}
 	}
 
-	if pair != nil && (action == entity.ActionLike || action == entity.ActionSuperLike) {
+	if pair.ID != 0 && (action == entity.ActionLike || action == entity.ActionSuperLike) {
 		m.appendMatchProfilesCache(ctx, userID, []int{likedToUserID})
 		return entity.OutcomeMatch, nil
 	}
 
-	if pair != nil && action == entity.ActionPass {
+	if pair.ID != 0 && action == entity.ActionPass {
 		return entity.OutcomeMissed, nil
 	}
 
@@ -226,7 +232,7 @@ func (m *MatchRepo) getLikedProfilesIDs(ctx context.Context, userID int, date *t
 	var profiles []int
 	query := m.db.WithContext(ctx).
 		Model(&entity.SwipeTransaction{}).
-		Select("liked_to_id").
+		Select("to_id").
 		Where("user_id = ?", userID)
 
 	if date != nil {

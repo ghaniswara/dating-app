@@ -167,16 +167,15 @@ func setupDockerResources(config *config.Config) (*dockertest.Pool, *dockertest.
 		return nil, nil, nil, fmt.Errorf("could not start postgres: %s", err)
 	}
 
-	// redisOptions := &dockertest.RunOptions{
-	// 	Repository: "redis",
-	// 	Tag:        "7",
-	// 	Cmd:        []string{"redis-server", "/usr/local/etc/redis/redis.conf"},
-	// 	Mounts:     []string{"./test/helper/:/usr/local/etc/redis/"},
-	// }
+	redisOptions := &dockertest.RunOptions{
+		Repository: "redis",
+		Tag:        "7",
+		PortBindings: map[docker.Port][]docker.PortBinding{
+			"6379/tcp": {{HostIP: "127.0.0.1", HostPort: fmt.Sprintf("%s/tcp", config.Get("REDIS_PORT"))}},
+		},
+	}
 
-	// redisResource, err := pool.RunWithOptions(redisOptions)
-
-	redisResource, err := pool.Run("redis", "7", nil)
+	redisResource, err := pool.RunWithOptions(redisOptions)
 
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("could not start redis: %s", err)
