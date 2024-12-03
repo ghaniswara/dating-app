@@ -311,6 +311,7 @@ func createMatchRequest(t *testing.T, token string, profileID uint, method entit
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		t.Logf("Response: %v", resp)
 		t.Fatalf("Expected status code %d, got %d", http.StatusOK, resp.StatusCode)
 	}
 

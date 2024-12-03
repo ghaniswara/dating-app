@@ -2,16 +2,20 @@ package authUseCase
 
 import (
 	"context"
+	"net/http"
+	"strings"
 
 	"github.com/ghaniswara/dating-app/internal/entity"
 	userRepo "github.com/ghaniswara/dating-app/internal/repository/user"
 	"github.com/ghaniswara/dating-app/pkg/jwt"
+	"github.com/labstack/echo"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type IAuthUseCase interface {
 	SignupUser(ctx context.Context, request entity.CreateUserRequest) (*entity.User, error)
 	SignIn(ctx context.Context, email, username, password string) (string, error)
+	GetUserFromJWTRequest(c echo.Context) (*entity.User, error)
 }
 
 type authUseCase struct {
@@ -57,4 +61,25 @@ func (p *authUseCase) SignIn(ctx context.Context, email, username, password stri
 		return "", err
 	}
 	return token, nil
+}
+
+func (p *authUseCase) GetUserFromJWTRequest(c echo.Context) (*entity.User, error) {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return nil, c.JSON(http.StatusUnauthorized, map[string]string{"message": "missing token"})
+	}
+
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		return nil, c.JSON(http.StatusUnauthorized, map[string]string{"message": "invalid token format"})
+	}
+	token := parts[1]
+
+	claims, err := jwt.ValidateToken(token)
+
+	if err != nil {
+		return nil, c.JSON(http.StatusUnauthorized, map[string]string{"message": "invalid token"})
+	}
+
+	return p.userRepo.GetUserByID(c.Request().Context(), claims.UserID)
 }

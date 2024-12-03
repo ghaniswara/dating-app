@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/ghaniswara/dating-app/internal/entity"
+	authUseCase "github.com/ghaniswara/dating-app/internal/usecase/auth"
 	"github.com/ghaniswara/dating-app/internal/usecase/match"
 	"github.com/ghaniswara/dating-app/pkg/http_util"
 	"github.com/labstack/echo"
@@ -33,14 +34,18 @@ func GetProfileHandler(c echo.Context, matchCase match.IMatchUseCase) error {
 	})
 }
 
-func LikeHandler(c echo.Context, matchCase match.IMatchUseCase) error {
+func LikeHandler(c echo.Context, matchCase match.IMatchUseCase, authCase authUseCase.IAuthUseCase) error {
 	likeRequest, err := http_util.Decode[entity.MatchLikeRequest](c)
 
 	if err != nil {
 		return http_util.Encode(c, http.StatusBadRequest, map[string]string{"error": "invalid request"})
 	}
 
-	user := c.Request().Context().Value("userProfile").(*entity.User)
+	user, err := authCase.GetUserFromJWTRequest(c)
+
+	if err != nil {
+		return http_util.Encode(c, http.StatusUnauthorized, map[string]string{"error": "invalid token"})
+	}
 
 	action := entity.ActionLike
 
@@ -69,8 +74,12 @@ func LikeHandler(c echo.Context, matchCase match.IMatchUseCase) error {
 	})
 }
 
-func PassHandler(c echo.Context, matchCase match.IMatchUseCase) error {
-	user := c.Request().Context().Value("userProfile").(*entity.User)
+func PassHandler(c echo.Context, matchCase match.IMatchUseCase, authCase authUseCase.IAuthUseCase) error {
+	user, err := authCase.GetUserFromJWTRequest(c)
+
+	if err != nil {
+		return http_util.Encode(c, http.StatusUnauthorized, map[string]string{"error": "invalid token"})
+	}
 
 	passToUserID, err := strconv.Atoi(c.Param("id"))
 

@@ -29,15 +29,19 @@ func Encode[T any](c echo.Context, status int, v T) error {
 
 func Decode[T any](c echo.Context) (T, error) {
 	var v T
-	if err := c.Bind(&v); err != nil {
-		c.JSON(http.StatusBadRequest, HTTPErrorResponse[T]{
-			HTTPResponse: HTTPResponse[T]{
-				Message: "Bad Request",
-			},
-			Errors: []ErrorResponse{{Property: "request", Detail: "check your request"}},
-		})
-		return v, err
+
+	if c.Request().ContentLength > 0 {
+		if err := c.Bind(&v); err != nil {
+			c.JSON(http.StatusBadRequest, HTTPErrorResponse[T]{
+				HTTPResponse: HTTPResponse[T]{
+					Message: "Bad Request",
+				},
+				Errors: []ErrorResponse{{Property: "request", Detail: "check your request"}},
+			})
+			return v, err
+		}
 	}
+
 	return v, nil
 }
 

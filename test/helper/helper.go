@@ -219,7 +219,7 @@ func connectToRedis(redisResource *dockertest.Resource) (*redis.Client, error) {
 	return redisClient, err
 }
 
-func runMigrationsAndSeeds(db *sql.DB, dsn string) error {
+func runMigrationsAndSeeds(db *sql.DB, _ string) error {
 
 	driver, err := migratePostgres.WithInstance(db, &migratePostgres.Config{})
 

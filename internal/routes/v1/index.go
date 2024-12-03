@@ -26,15 +26,15 @@ func InitV1Routes(
 		return routesV1Auth.SignInHandler(c, authCase)
 	})
 
-	matchGroup := v1.Group("/match", middleware.JWTMiddleware(userRepo))
+	matchGroup := v1.Group("/match", middleware.JWTMiddleware())
 	matchGroup.GET("/profile", func(c echo.Context) error {
 		return routesV1Match.GetProfileHandler(c, matchCase)
 	})
 	matchGroup.POST("/profile/:id/like", func(c echo.Context) error {
-		return routesV1Match.LikeHandler(c, matchCase)
+		return routesV1Match.LikeHandler(c, matchCase, authCase)
 	})
 
 	matchGroup.POST("/profile/:id/pass", func(c echo.Context) error {
-		return routesV1Match.PassHandler(c, matchCase)
+		return routesV1Match.PassHandler(c, matchCase, authCase)
 	})
 }
