@@ -243,6 +243,55 @@ sequenceDiagram
     end
 ```
 
+### Auth Usecase
+* Signup User
+```mermaid
+sequenceDiagram
+    participant User
+    participant AuthUseCase as authUseCase
+    participant UserRepo as userRepo
+
+    User->>AuthUseCase: SignupUser(authData)
+    AuthUseCase->>AuthUseCase: Generate hashedPassword
+    alt Password generation fails
+        AuthUseCase-->>User: return error
+    else Password generation succeeds
+        AuthUseCase->>UserRepo: CreateUser(user)
+        UserRepo-->>AuthUseCase: return created user
+        AuthUseCase-->>User: return created user
+    end
+```
+
+* Signin User
+```mermaid
+sequenceDiagram
+    participant User
+    participant AuthUseCase as authUseCase
+    participant UserRepo as userRepo
+    participant JWT
+
+    User->>AuthUseCase: SignIn(email, username, password)
+    AuthUseCase->>UserRepo: GetUserByUnameOrEmail(email, username)
+    alt User not found
+        UserRepo-->>AuthUseCase: return error
+        AuthUseCase-->>User: return error
+    else User found
+        UserRepo-->>AuthUseCase: return user
+        AuthUseCase->>AuthUseCase: Compare password
+        alt Password mismatch
+            AuthUseCase-->>User: return error
+        else Password match
+            AuthUseCase->>JWT: CreateToken(user.ID, user.Username)
+            alt Token creation fails
+                JWT-->>AuthUseCase: return error
+                AuthUseCase-->>User: return error
+            else Token creation succeeds
+                JWT-->>AuthUseCase: return token
+                AuthUseCase-->>User: return token
+            end
+        end
+    end
+```
 ## Test Cases
 
 ### Auth Case
