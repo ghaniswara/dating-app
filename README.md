@@ -45,6 +45,33 @@ Repository URL : https://github.com/ghaniswara/dating-app
 4. When like a profile which like back, user will notified immediately
 5. When user pass a profile which likes the user back, user will notified immediately that he missed the chance to match with that profile
 
+## Stacks
+- Golang
+    
+    The ease of use of goroutine which allows for us to utilize the distributed processing for future development, which is critical for the scalability of the service, in distributed system which needs to handle a large number of requests per seconds.
+
+    Golang is a simple language which similar to C, which is developer friendly and easy to understand.
+- Echo Router
+    
+    Based on benchmark from from techempower JSON Serialization benchmark ehco is one of the fastest compared to chi and golang stardard library, a hight throughput is critical for an application such as tinder, which needs to handle a lot of RPS
+
+    Echo is also compatible with the standard go net/http library, which gives flexibility for developers
+
+    https://www.techempower.com/benchmarks/#hw=ph&test=json&section=data-r22&l=zijocf-cn3
+- PostgreSQL
+    
+    PostgreSQL offer extensive support for SQL and it's a battle-tested database which is used by many big companies, which ensures that the database part of the service is reliable and scalable.
+
+    Postgres Extension such as 
+        - pg_partman for partitioning the table for better performance and easier backup.
+        - pg_mq for message queueing which can be used to handle the event when user liked or passed a profile. in the early phase of the development
+        - pg_cron for scheduling the task to run periodically.
+
+    furthermore supabase involvement in the Package manager [database.dev](database.dev) which will alow tons of community support for the database ecosystem.
+- Redis
+    
+    Redis is used to cache the most frequently accessed data from the database, which will improve the performance of the service.
+
 ## ER Diagram
 ```mermaid
 erDiagram
@@ -204,3 +231,5 @@ sequenceDiagram
         end
     end
 ```
+
+## Test Cases
