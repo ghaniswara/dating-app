@@ -37,6 +37,16 @@ Repository URL : https://github.com/ghaniswara/dating-app
 
 ## Functional & Non-Functional Requirements
 ### Functional Requirements
+1. Endpoint to register a new user
+2. Endpoint to login
+3. Endpoint to get dating profiles
+    - It should accept a list of excluded profiles ID
+    - It should not return a same profile which has been swiped by the user on that day
+    - It should not return a profile which has been matched with the user
+4. Endpoint to swipe dating profile
+    - It should accept a profile ID and action (like or pass)
+    - It should return a outcome of the swipe
+    - If user swipe like more than 10 times, user shouldn't be able to swipe like anymore
 
 ### Non-Functional Requirements
 1. User can likes and pass other users
@@ -44,6 +54,7 @@ Repository URL : https://github.com/ghaniswara/dating-app
 3. User will only see dating profile that they haven't swiped yet
 4. When like a profile which like back, user will notified immediately
 5. When user pass a profile which likes the user back, user will notified immediately that he missed the chance to match with that profile
+6. When a user swipe like more than 10 times, user shouldn't be able to perform any like action but can still pass other users
 
 ## Stacks
 - Golang

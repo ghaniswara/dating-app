@@ -74,7 +74,7 @@ func (m *matchUseCase) SwipeDatingProfile(
 		return 0, err
 	}
 
-	if likesCount >= 10 && !user.IsPremium {
+	if likesCount >= 10 && !user.IsPremium && (action == entity.ActionLike || action == entity.ActionSuperLike) {
 		return entity.OutcomeLimitReached, nil
 	}
 
