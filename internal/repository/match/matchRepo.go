@@ -44,18 +44,25 @@ func NewMatchRepo(db *gorm.DB, redis *redis.Client) IMatchRepo {
 
 func (m *MatchRepo) GetTodayLikesCount(ctx context.Context, userID int) (int, error) {
 	countKey := ":user:" + strconv.Itoa(userID) + ":likes:count"
+	exists, err := m.rdb.Exists(countKey).Result()
 
-	count, err := m.rdb.Get(countKey).Int()
-	if err == redis.Nil {
+	var count int
+
+	if err != nil {
+		return 0, err
+	}
+
+	if exists == 0 {
 		count, err := m.getLikesCount(ctx, userID, time.Now())
 		if err != nil {
 			return 0, err
 		}
 		m.rdb.Set(countKey, count, getTTL())
-	}
-
-	if err != nil && err != redis.Nil {
-		return 0, err
+	} else {
+		count, err = m.rdb.Get(countKey).Int()
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	return count, nil
@@ -65,11 +72,16 @@ func (m *MatchRepo) GetTodayLikedProfilesIDs(ctx context.Context, userID int) ([
 	profilesKey := ":user:" + strconv.Itoa(userID) + ":likes:profiles"
 
 	var profiles []int
-	err := m.rdb.SMembers(profilesKey).ScanSlice(&profiles)
+
+	exists, err := m.rdb.Exists(profilesKey).Result()
+
+	if err != nil {
+		return nil, err
+	}
 
 	now := time.Now()
 
-	if err == redis.Nil {
+	if exists == 0 {
 		profiles, err = m.getLikedProfilesIDs(ctx, userID, &now)
 		if err != nil {
 			return nil, err
@@ -80,6 +92,11 @@ func (m *MatchRepo) GetTodayLikedProfilesIDs(ctx context.Context, userID int) ([
 		}
 
 		m.rdb.Expire(profilesKey, getTTL())
+	} else {
+		err = m.rdb.SMembers(profilesKey).ScanSlice(&profiles)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return profiles, nil
@@ -165,12 +182,14 @@ func (m *MatchRepo) CreateSwipe(ctx context.Context, userID int, likedToUserID i
 		}
 	}
 
-	if pair.ID != 0 && (action == entity.ActionLike || action == entity.ActionSuperLike) {
+	isPairFound := pair != nil && pair.ID != 0
+
+	if isPairFound && (action == entity.ActionLike || action == entity.ActionSuperLike) {
 		m.appendMatchProfilesCache(ctx, userID, []int{likedToUserID})
 		return entity.OutcomeMatch, nil
 	}
 
-	if pair.ID != 0 && action == entity.ActionPass {
+	if isPairFound && action == entity.ActionPass {
 		return entity.OutcomeMissed, nil
 	}
 
@@ -181,8 +200,14 @@ func (m *MatchRepo) GetMatchedProfilesIDs(ctx context.Context, userID int) ([]in
 	profilesKey := ":user:" + strconv.Itoa(userID) + ":match:profiles"
 
 	var profiles []int
-	err := m.rdb.SMembers(profilesKey).ScanSlice(&profiles)
-	if err == redis.Nil {
+
+	exists, err := m.rdb.Exists(profilesKey).Result()
+
+	if err != nil {
+		return nil, err
+	}
+
+	if exists == 0 {
 		res := m.db.WithContext(ctx).
 			Model(&entity.SwipeTransaction{}).
 			Select("to_id").
@@ -195,6 +220,12 @@ func (m *MatchRepo) GetMatchedProfilesIDs(ctx context.Context, userID int) ([]in
 		m.rdb.Expire(profilesKey, 30*24*time.Hour)
 
 		return profiles, res.Error
+	} else {
+		err = m.rdb.SMembers(profilesKey).ScanSlice(&profiles)
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return profiles, nil
@@ -258,8 +289,8 @@ func (m *MatchRepo) appendLikedProfilesCacheToday(_ context.Context, userID int,
 
 func (m *MatchRepo) appendMatchProfilesCache(_ context.Context, userID int, newProfiles []int) error {
 	profilesKey := ":user:" + strconv.Itoa(userID) + ":match:profiles"
-
 	var currentProfiles []int
+
 	err := m.rdb.SMembers(profilesKey).ScanSlice(&currentProfiles)
 	if err != nil && err != redis.Nil {
 		return err

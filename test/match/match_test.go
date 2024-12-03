@@ -62,7 +62,7 @@ func TestLike(t *testing.T) {
 
 	for _, v := range users {
 		response := createMatchRequest(t, token, v.ID, entity.ActionLike)
-		t.Logf("Response: %v", response)
+		fmt.Printf("Response: %+v\n", response)
 
 		OutcomeCount[response.OutcomeEnum]++
 	}
@@ -120,12 +120,12 @@ func TestPass(t *testing.T) {
 		t.Fatalf("Failed to create token: %s", err)
 	}
 
-	var OutcomeCount map[string]int = make(map[string]int)
+	var OutcomeCount map[entity.Outcome]int = make(map[entity.Outcome]int)
 
 	for _, v := range profiles {
 		response := createMatchRequest(t, token, v.ID, entity.ActionPass)
 
-		OutcomeCount[response.OutcomeEnum.String()]++
+		OutcomeCount[response.OutcomeEnum]++
 	}
 
 	transactions, err := matchRepo.GetSwipedProfilesIDs(context.TODO(), user.ID, nil)
@@ -199,7 +199,7 @@ func TestMatch(t *testing.T) {
 	assert.Equal(t, resp2.OutcomeEnum, entity.OutcomeMatch)
 }
 
-func LikeLimit(t *testing.T) {
+func TestLikeLimit(t *testing.T) {
 	// Create 11 profiles
 	profiles, err := helper_test.PopulateUsers(globalResources.ORM, 11)
 	if err != nil {
