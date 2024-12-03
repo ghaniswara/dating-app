@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"testing"
 
 	"github.com/ghaniswara/dating-app/internal/entity"
+	"github.com/ghaniswara/dating-app/pkg/http_util"
 	helper_test "github.com/ghaniswara/dating-app/test/helper"
 	"github.com/stretchr/testify/assert"
 )
@@ -25,8 +27,6 @@ func TestMain(m *testing.M) {
 	} else {
 		// Run tests
 		code = m.Run()
-
-		// Clean up resources
 	}
 
 	resources.CleanupTestServer()
@@ -71,7 +71,7 @@ func TestSignIn(t *testing.T) {
 		Password: "password123",
 	}
 
-	_, err := helper_test.SignUpUser(reqBody.Username, reqBody.Password, reqBody.Email)
+	_, err := helper_test.SignUpUser(t, reqBody.Username, reqBody.Password, reqBody.Email)
 
 	if err != nil {
 		t.Fatalf("Failed to Sign Up: %v", err)
@@ -98,4 +98,22 @@ func TestSignIn(t *testing.T) {
 
 	// Assert the response
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	bodyBytes, err := io.ReadAll(resp.Body) // Read the response body
+	if err != nil {
+		t.Fatalf("Failed to read response body: %v", err)
+	}
+	defer resp.Body.Close() // Close the body after reading
+
+	// Print the raw response body
+	log.Printf("Raw response body: %s", bodyBytes)
+
+	// Decode the response
+	response := http_util.HTTPResponse[entity.SignInResponse]{}
+	response, err = http_util.DecodeBody[http_util.HTTPResponse[entity.SignInResponse]](bodyBytes, response)
+	if err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	assert.NotEmpty(t, response.Data.Token)
 }

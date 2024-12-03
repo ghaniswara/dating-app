@@ -1,0 +1,37 @@
+version: '3'
+services:
+  app:
+    container_name: dating-apps
+    build:
+      context: .
+      dockerfile: ./Dockerfile.dev
+    ports: 
+      - 3000:3000
+    environment:
+      APP_ENV: "local"
+
+    restart: on-failure
+    volumes:
+      - ./:/usr/src/app
+      - ./init-scripts:/usr/local/bin
+    depends_on:
+      - redis
+      - mysql
+      - kafka
+    networks:
+      - dating-app-network
+    command: sh -c "/usr/local/bin/wait-for-it.sh mysql-tos:3306 -- /usr/local/bin/wait-for-it.sh kafka:9092 -- air server"
+    
+  redis:
+    image: redis:alpine
+    ports:
+      - 6379:6379
+    container_name: redis-tos
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    networks:
+      - dating-app-network
+
+networks:
+  dating-app-network:
+    driver: bridge

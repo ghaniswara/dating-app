@@ -1,0 +1,17 @@
+FROM golang:1.23-alpine AS build
+
+RUN apk add --update --no-cache curl git openssh-client make build-base musl-dev 
+RUN apk add bash ca-certificates git gcc g++ libc-dev musl-dev cyrus-sasl-dev librdkafka-dev pkgconf
+
+ARG BITBUCKET_USERNAME
+ARG BITBUCKET_APP_PASSWORD
+
+RUN go install github.com/air-verse/air@1.61.1
+
+WORKDIR /usr/src/app
+COPY . .
+RUN go mod download
+RUN go mod tidy
+
+
+

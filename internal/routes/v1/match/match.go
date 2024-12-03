@@ -6,31 +6,15 @@ import (
 
 	"github.com/ghaniswara/dating-app/internal/entity"
 	"github.com/ghaniswara/dating-app/internal/usecase/match"
-	serializer "github.com/ghaniswara/dating-app/pkg/http_util"
+	"github.com/ghaniswara/dating-app/pkg/http_util"
 	"github.com/labstack/echo"
 )
 
-type MatchLikeRequest struct {
-	IsSuperLike bool `json:"is_super_like"`
-}
-
-type MatchGetProfileRequest struct {
-	ExcludeProfiles []int `json:"exclude_profiles"`
-}
-
-type MatchGetProfileResponse struct {
-	Profiles []entity.User `json:"profiles"`
-}
-
-type MatchSwipeResponse struct {
-	Outcome string `json:"outcome"`
-}
-
 func GetProfileHandler(c echo.Context, matchCase match.IMatchUseCase) error {
-	request, err := serializer.Decode[MatchGetProfileRequest](c)
+	request, err := http_util.Decode[entity.MatchGetProfileRequest](c)
 
 	if err != nil {
-		return serializer.Encode(c, http.StatusBadRequest, map[string]string{"error": "invalid request"})
+		return http_util.Encode(c, http.StatusBadRequest, map[string]string{"error": "invalid request"})
 	}
 
 	user := c.Request().Context().Value("userProfile").(*entity.User)
@@ -38,17 +22,22 @@ func GetProfileHandler(c echo.Context, matchCase match.IMatchUseCase) error {
 	profiles, err := matchCase.GetDatingProfiles(c.Request().Context(), int(user.ID), request.ExcludeProfiles, 10)
 
 	if err != nil {
-		return serializer.Encode(c, http.StatusInternalServerError, map[string]string{"error": "failed to get profiles"})
+		return http_util.Encode(c, http.StatusInternalServerError, map[string]string{"error": "failed to get profiles"})
 	}
 
-	return serializer.Encode(c, http.StatusOK, MatchGetProfileResponse{Profiles: profiles})
+	return http_util.Encode(c, http.StatusOK, http_util.HTTPResponse[entity.MatchGetProfileResponse]{
+		Message: "Profiles fetched successfully",
+		Data: entity.MatchGetProfileResponse{
+			Profiles: profiles,
+		},
+	})
 }
 
 func LikeHandler(c echo.Context, matchCase match.IMatchUseCase) error {
-	likeRequest, err := serializer.Decode[MatchLikeRequest](c)
+	likeRequest, err := http_util.Decode[entity.MatchLikeRequest](c)
 
 	if err != nil {
-		return serializer.Encode(c, http.StatusBadRequest, map[string]string{"error": "invalid request"})
+		return http_util.Encode(c, http.StatusBadRequest, map[string]string{"error": "invalid request"})
 	}
 
 	user := c.Request().Context().Value("userProfile").(*entity.User)
@@ -62,16 +51,22 @@ func LikeHandler(c echo.Context, matchCase match.IMatchUseCase) error {
 	likesToUserID, err := strconv.Atoi(c.Param("id"))
 
 	if err != nil {
-		return serializer.Encode(c, http.StatusBadRequest, map[string]string{"error": "invalid request"})
+		return http_util.Encode(c, http.StatusBadRequest, map[string]string{"error": "invalid request"})
 	}
 
 	outcome, err := matchCase.SwipeDatingProfile(c.Request().Context(), int(user.ID), likesToUserID, action)
 
 	if err != nil {
-		return serializer.Encode(c, http.StatusInternalServerError, map[string]string{"error": "failed to swipe"})
+		return http_util.Encode(c, http.StatusInternalServerError, map[string]string{"error": "failed to swipe"})
 	}
 
-	return serializer.Encode(c, http.StatusOK, MatchSwipeResponse{Outcome: outcome.String()})
+	return http_util.Encode(c, http.StatusOK, http_util.HTTPResponse[entity.MatchSwipeResponse]{
+		Message: "Swipe outcome",
+		Data: entity.MatchSwipeResponse{
+			Outcome:     outcome.String(),
+			OutcomeEnum: outcome,
+		},
+	})
 }
 
 func PassHandler(c echo.Context, matchCase match.IMatchUseCase) error {
@@ -80,14 +75,20 @@ func PassHandler(c echo.Context, matchCase match.IMatchUseCase) error {
 	passToUserID, err := strconv.Atoi(c.Param("id"))
 
 	if err != nil {
-		return serializer.Encode(c, http.StatusBadRequest, map[string]string{"error": "invalid request"})
+		return http_util.Encode(c, http.StatusBadRequest, map[string]string{"error": "invalid request"})
 	}
 
 	outcome, err := matchCase.SwipeDatingProfile(c.Request().Context(), int(user.ID), passToUserID, entity.ActionPass)
 
 	if err != nil {
-		return serializer.Encode(c, http.StatusInternalServerError, map[string]string{"error": "failed to swipe"})
+		return http_util.Encode(c, http.StatusInternalServerError, map[string]string{"error": "failed to swipe"})
 	}
 
-	return serializer.Encode(c, http.StatusOK, MatchSwipeResponse{Outcome: outcome.String()})
+	return http_util.Encode(c, http.StatusOK, http_util.HTTPResponse[entity.MatchSwipeResponse]{
+		Message: "Swipe outcome",
+		Data: entity.MatchSwipeResponse{
+			Outcome:     outcome.String(),
+			OutcomeEnum: outcome,
+		},
+	})
 }

@@ -27,13 +27,13 @@ func NewMatchUseCase(userRepo userRepo.IUserRepo, redisCache *redis.Client, matc
 }
 
 func (m *matchUseCase) GetDatingProfiles(ctx context.Context, userID int, excludeProfiles []int, limit int) ([]entity.User, error) {
-	likedProfiles, err := m.matchRepo.GetTodayLikedProfiles(ctx, userID)
+	likedProfiles, err := m.matchRepo.GetTodayLikedProfilesIDs(ctx, userID)
 
 	if err != nil {
 		return nil, err
 	}
 
-	matchedProfiles, err := m.matchRepo.GetMatchProfiles(ctx, userID)
+	matchedProfiles, err := m.matchRepo.GetMatchedProfilesIDs(ctx, userID)
 
 	if err != nil {
 		return nil, err
@@ -42,7 +42,7 @@ func (m *matchUseCase) GetDatingProfiles(ctx context.Context, userID int, exclud
 	excludeProfiles = append(excludeProfiles, likedProfiles...)
 	excludeProfiles = append(excludeProfiles, matchedProfiles...)
 
-	profiles, err := m.matchRepo.GetDatingProfiles(ctx, userID, excludeProfiles, limit)
+	profiles, err := m.matchRepo.GetDatingProfilesIDs(ctx, userID, excludeProfiles, limit)
 
 	if err != nil {
 		return nil, err
@@ -74,7 +74,7 @@ func (m *matchUseCase) SwipeDatingProfile(
 		return 0, err
 	}
 
-	if likesCount >= 10 && !user.Premium {
+	if likesCount >= 10 && !user.IsPremium {
 		return entity.OutcomeLimitReached, nil
 	}
 

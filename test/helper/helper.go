@@ -6,16 +6,20 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/ghaniswara/dating-app/internal"
 	"github.com/ghaniswara/dating-app/internal/config"
 	"github.com/ghaniswara/dating-app/internal/entity"
+	"github.com/ghaniswara/dating-app/pkg/http_util"
 	"github.com/ghaniswara/dating-app/pkg/path"
+	"github.com/go-faker/faker/v4"
 	"github.com/go-redis/redis"
 	"github.com/golang-migrate/migrate/v4"
 	migratePostgres "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -35,13 +39,14 @@ type TestServerResources struct {
 	RedisResource *dockertest.Resource
 	Address       string
 	ORM           *gorm.DB
+	Redis         *redis.Client
 }
 
 // setupTestServer sets up the test environment including Docker resources and server
 func SetupTestServer(ctx context.Context) (*TestServerResources, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	var gormDB *gorm.DB
-
+	var redisClient *redis.Client
 	config, err := config.NewConfig("TEST")
 	if err != nil {
 		cancel()
@@ -66,7 +71,7 @@ func SetupTestServer(ctx context.Context) (*TestServerResources, error) {
 	fmt.Println("ℹ️ Database Connected")
 
 	if err := pool.Retry(func() error {
-		_, err = connectToRedis(redisResource)
+		redisClient, err = connectToRedis(redisResource)
 		return err
 	}); err != nil {
 		cancel()
@@ -107,6 +112,7 @@ func SetupTestServer(ctx context.Context) (*TestServerResources, error) {
 		DBResource:    dbResource,
 		RedisResource: redisResource,
 		ORM:           gormDB,
+		Redis:         redisClient,
 	}, nil
 }
 
@@ -161,7 +167,17 @@ func setupDockerResources(config *config.Config) (*dockertest.Pool, *dockertest.
 		return nil, nil, nil, fmt.Errorf("could not start postgres: %s", err)
 	}
 
+	// redisOptions := &dockertest.RunOptions{
+	// 	Repository: "redis",
+	// 	Tag:        "7",
+	// 	Cmd:        []string{"redis-server", "/usr/local/etc/redis/redis.conf"},
+	// 	Mounts:     []string{"./test/helper/:/usr/local/etc/redis/"},
+	// }
+
+	// redisResource, err := pool.RunWithOptions(redisOptions)
+
 	redisResource, err := pool.Run("redis", "7", nil)
+
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("could not start redis: %s", err)
 	}
@@ -260,7 +276,7 @@ func waitForServer(ctx context.Context, port string) bool {
 	}
 }
 
-func SignUpUser(username, password, email string) (entity.CreateUserRequest, error) {
+func SignUpUser(t *testing.T, username, password, email string) (entity.SignUpResponse, error) {
 	reqBody := entity.CreateUserRequest{
 		Name:     "testname",
 		Username: username,
@@ -269,7 +285,7 @@ func SignUpUser(username, password, email string) (entity.CreateUserRequest, err
 	}
 	body, err := json.Marshal(reqBody)
 	if err != nil {
-		return entity.CreateUserRequest{}, err
+		t.Fatalf("Failed to marshal request body: %v", err)
 	}
 
 	// Create a new HTTP client
@@ -278,21 +294,84 @@ func SignUpUser(username, password, email string) (entity.CreateUserRequest, err
 	// Make a normal HTTP request
 	req, err := http.NewRequest(http.MethodPost, "http://localhost:8080/v1/auth/sign-up", bytes.NewBuffer(body))
 	if err != nil {
-		return entity.CreateUserRequest{}, err
+		t.Fatalf("Failed to create request: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	// Send the request
 	resp, err := client.Do(req)
 	if err != nil {
-		return entity.CreateUserRequest{}, err
+		t.Fatalf("Failed to send request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	// Assert the response
 	if resp.StatusCode != http.StatusOK {
-		return entity.CreateUserRequest{}, fmt.Errorf("failed to sign up, status code: %d", resp.StatusCode)
+		t.Fatalf("Expected status code %d, got %d", http.StatusOK, resp.StatusCode)
 	}
 
-	return reqBody, nil
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body: %v", err)
+	}
+
+	response := http_util.HTTPResponse[entity.SignUpResponse]{}
+	response, err = http_util.DecodeBody[http_util.HTTPResponse[entity.SignUpResponse]](bodyBytes, response)
+	if err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	return response.Data, nil
+}
+
+func SignInUser(t *testing.T, email, username, password string) (token string, err error) {
+	reqBody := entity.SignInRequest{
+		Email:    email,
+		Username: username,
+		Password: password,
+	}
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		t.Fatalf("Failed to marshal request body: %v", err)
+	}
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:8080/v1/auth/sign-in", bytes.NewBuffer(body))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("Failed to send request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status code %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body) // Read the response body
+
+	response := http_util.HTTPResponse[entity.SignInResponse]{}
+	response, err = http_util.DecodeBody[http_util.HTTPResponse[entity.SignInResponse]](bodyBytes, response)
+	if err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	return response.Data.Token, nil
+}
+
+func PopulateUsers(db *gorm.DB, count int) (users []entity.User, err error) {
+	for i := 0; i < count; i++ {
+		user := entity.User{
+			Name:      faker.Name(),
+			Email:     faker.Email(),
+			Username:  faker.Username(),
+			Password:  faker.Password(),
+			IsPremium: false,
+		}
+		db.Create(&user)
+		users = append(users, user)
+	}
+	return users, nil
 }

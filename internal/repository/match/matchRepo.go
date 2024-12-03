@@ -13,11 +13,21 @@ import (
 )
 
 type IMatchRepo interface {
+	// User Table
+	GetDatingProfilesIDs(ctx context.Context, userID int, excludeIDs []int, limit int) ([]entity.User, error)
+
+	// SwipeTransaction Table
+
 	GetTodayLikesCount(ctx context.Context, userID int) (int, error)
-	GetTodayLikedProfiles(ctx context.Context, userID int) ([]int, error)
-	GetDatingProfiles(ctx context.Context, userID int, excludeProfiles []int, limit int) ([]entity.User, error)
+	GetTodayLikedProfilesIDs(ctx context.Context, userID int) ([]int, error)
+
+	// Query SwipeTransaction Table returning IDs that matched (like each other)
+	GetMatchedProfilesIDs(ctx context.Context, userID int) ([]int, error)
+
+	// Query SwipeTransaction Table returning IDs that swiped by the user with any action
+	GetSwipedProfilesIDs(ctx context.Context, userID int, date *time.Time) ([]entity.SwipeTransaction, error)
+
 	CreateSwipe(ctx context.Context, userID int, likedToUserID int, action entity.Action) (Outcome entity.Outcome, err error)
-	GetMatchProfiles(ctx context.Context, userID int) ([]int, error)
 }
 
 type MatchRepo struct {
@@ -47,14 +57,16 @@ func (m *MatchRepo) GetTodayLikesCount(ctx context.Context, userID int) (int, er
 	return count, nil
 }
 
-func (m *MatchRepo) GetTodayLikedProfiles(ctx context.Context, userID int) ([]int, error) {
+func (m *MatchRepo) GetTodayLikedProfilesIDs(ctx context.Context, userID int) ([]int, error) {
 	profilesKey := ":user:" + strconv.Itoa(userID) + ":likes:profiles"
 
 	var profiles []int
 	err := m.rdb.SMembers(profilesKey).ScanSlice(&profiles)
 
+	now := time.Now()
+
 	if err == redis.Nil {
-		profiles, err = m.getLikedProfiles(ctx, userID, time.Now())
+		profiles, err = m.getLikedProfilesIDs(ctx, userID, &now)
 		if err != nil {
 			return nil, err
 		}
@@ -72,13 +84,13 @@ func (m *MatchRepo) GetTodayLikedProfiles(ctx context.Context, userID int) ([]in
 // TODO
 // Refactor to use join table with the SwipeTransaction table
 // With the new table, we can get the ranking of the user
-func (m *MatchRepo) GetDatingProfiles(ctx context.Context, userID int, excludeProfiles []int, limit int) ([]entity.User, error) {
+func (m *MatchRepo) GetDatingProfilesIDs(ctx context.Context, userID int, excludeProfiles []int, limit int) ([]entity.User, error) {
 	var profiles []entity.User
 
 	// Create a subquery to select random IDs
 	subquery := m.db.WithContext(ctx).
 		Model(&entity.User{}).
-		Select("id").
+		Select("id, name").
 		Where("id NOT IN ?", append(excludeProfiles, userID)).
 		Order("RANDOM()").
 		Limit(limit + 10)
@@ -92,7 +104,7 @@ func (m *MatchRepo) GetDatingProfiles(ctx context.Context, userID int, excludePr
 }
 
 func (m *MatchRepo) CreateSwipe(ctx context.Context, userID int, likedToUserID int, action entity.Action) (entity.Outcome, error) {
-	var pair *entity.LikeTransaction
+	var pair *entity.SwipeTransaction
 	// Check if liked profile exists
 	var user *entity.User
 	likedProfileRes := m.db.
@@ -115,7 +127,7 @@ func (m *MatchRepo) CreateSwipe(ctx context.Context, userID int, likedToUserID i
 		m.appendLikedProfilesCacheToday(ctx, userID, []int{likedToUserID})
 
 		resPair := m.db.WithContext(ctx).
-			Model(&entity.LikeTransaction{}).
+			Model(&entity.SwipeTransaction{}).
 			Where("user_id = ? AND likes_to_id = ? AND action = ?", likedToUserID, userID, entity.ActionLike).
 			First(&pair)
 
@@ -126,10 +138,10 @@ func (m *MatchRepo) CreateSwipe(ctx context.Context, userID int, likedToUserID i
 
 	// Create like transaction for the user
 	res := m.db.WithContext(ctx).
-		Model(&entity.LikeTransaction{}).
-		Create(&entity.LikeTransaction{
+		Model(&entity.SwipeTransaction{}).
+		Create(&entity.SwipeTransaction{
 			UserID:    uint(userID),
-			LikesToID: uint(likedToUserID),
+			ToID:      uint(likedToUserID),
 			Date:      time.Now(),
 			Action:    action,
 			Time:      time.Now(),
@@ -141,7 +153,7 @@ func (m *MatchRepo) CreateSwipe(ctx context.Context, userID int, likedToUserID i
 	}
 	// update the pair to isMatched if both profile like each other
 	if pair != nil && action == entity.ActionLike {
-		res := m.db.WithContext(ctx).Model(&entity.LikeTransaction{}).Where("user_id = ? AND likes_to_id = ?", likedToUserID, userID).Update("is_matched", true)
+		res := m.db.WithContext(ctx).Model(&entity.SwipeTransaction{}).Where("user_id = ? AND likes_to_id = ?", likedToUserID, userID).Update("is_matched", true)
 		if res.Error != nil {
 			return 0, res.Error
 		}
@@ -159,14 +171,14 @@ func (m *MatchRepo) CreateSwipe(ctx context.Context, userID int, likedToUserID i
 	return entity.OutcomeNoLike, nil
 }
 
-func (m *MatchRepo) GetMatchProfiles(ctx context.Context, userID int) ([]int, error) {
+func (m *MatchRepo) GetMatchedProfilesIDs(ctx context.Context, userID int) ([]int, error) {
 	profilesKey := ":user:" + strconv.Itoa(userID) + ":match:profiles"
 
 	var profiles []int
 	err := m.rdb.SMembers(profilesKey).ScanSlice(&profiles)
 	if err == redis.Nil {
 		res := m.db.WithContext(ctx).
-			Model(&entity.LikeTransaction{}).
+			Model(&entity.SwipeTransaction{}).
 			Select("likes_to_id").
 			Where("user_id = ? AND is_matched = ?", userID, true).
 			Find(&profiles)
@@ -182,12 +194,20 @@ func (m *MatchRepo) GetMatchProfiles(ctx context.Context, userID int) ([]int, er
 	return profiles, nil
 }
 
-func getTTL() time.Duration {
-	now := time.Now()
-	startOfTomorrow := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())
-	ttlBeforeTomorrow := startOfTomorrow.Add(24 * time.Hour).Sub(now)
+func (m *MatchRepo) GetSwipedProfilesIDs(ctx context.Context, userID int, date *time.Time) ([]entity.SwipeTransaction, error) {
+	var profiles []entity.SwipeTransaction
+	query := m.db.WithContext(ctx).
+		Model(&entity.SwipeTransaction{}).
+		Select("user_id, to_id, action").
+		Where("user_id = ?", userID)
 
-	return ttlBeforeTomorrow
+	if date != nil {
+		query = query.Where("date = ?", *date)
+	}
+
+	res := query.Find(&profiles)
+
+	return profiles, res.Error
 }
 
 // Private functions
@@ -195,37 +215,27 @@ func getTTL() time.Duration {
 func (m *MatchRepo) getLikesCount(ctx context.Context, userID int, date time.Time) (int, error) {
 	var count int64
 	res := m.db.WithContext(ctx).
-		Model(&entity.LikeTransaction{}).
+		Model(&entity.SwipeTransaction{}).
 		Where("user_id = ? AND date = ? ", userID, date).
 		Count(&count)
 
 	return int(count), res.Error
 }
 
-func (m *MatchRepo) getLikedProfiles(ctx context.Context, userID int, date time.Time) ([]int, error) {
+func (m *MatchRepo) getLikedProfilesIDs(ctx context.Context, userID int, date *time.Time) ([]int, error) {
 	var profiles []int
-	res := m.db.WithContext(ctx).
-		Model(&entity.LikeTransaction{}).
+	query := m.db.WithContext(ctx).
+		Model(&entity.SwipeTransaction{}).
 		Select("liked_to_id").
-		Where("user_id = ? AND date = ?", userID, date).
-		Find(&profiles)
+		Where("user_id = ?", userID)
+
+	if date != nil {
+		query = query.Where("date = ?", *date)
+	}
+
+	res := query.Find(&profiles)
 
 	return profiles, res.Error
-}
-
-func (m *MatchRepo) getSwipedProfiles(ctx context.Context, userID int, date time.Time) ([]int, error) {
-	var profiles []int
-	res := m.db.WithContext(ctx).
-		Model(&entity.LikeTransaction{}).
-		Select("likes_to_id").
-		Where("user_id = ? AND date = ?", userID, date).
-		Find(&profiles)
-
-	return profiles, res.Error
-}
-
-func (m *MatchRepo) getTodaySwipedProfiles(ctx context.Context, userID int) ([]int, error) {
-	return m.getSwipedProfiles(ctx, userID, time.Now())
 }
 
 func (m *MatchRepo) appendLikedCountCacheToday(_ context.Context, userID int, count int) error {
@@ -259,4 +269,14 @@ func (m *MatchRepo) appendMatchProfilesCache(_ context.Context, userID int, newP
 	m.rdb.Expire(profilesKey, 30*24*time.Hour)
 
 	return nil
+}
+
+// Helper
+
+func getTTL() time.Duration {
+	now := time.Now()
+	startOfTomorrow := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())
+	ttlBeforeTomorrow := startOfTomorrow.Add(24 * time.Hour).Sub(now)
+
+	return ttlBeforeTomorrow
 }

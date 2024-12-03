@@ -32,10 +32,11 @@ func (p *authUseCase) SignupUser(ctx context.Context, authData entity.CreateUser
 	authData.Password = string(hashedPassword)
 
 	user := entity.User{
-		Name:     authData.Name,
-		Email:    authData.Email,
-		Username: authData.Username,
-		Password: authData.Password,
+		Name:      authData.Name,
+		Email:     authData.Email,
+		Username:  authData.Username,
+		Password:  authData.Password,
+		IsPremium: false,
 	}
 
 	return p.userRepo.CreateUser(ctx, &user)

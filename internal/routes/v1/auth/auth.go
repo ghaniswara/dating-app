@@ -5,54 +5,70 @@ import (
 
 	"github.com/ghaniswara/dating-app/internal/entity"
 	authUseCase "github.com/ghaniswara/dating-app/internal/usecase/auth"
-	serializer "github.com/ghaniswara/dating-app/pkg/http_util"
+	"github.com/ghaniswara/dating-app/pkg/http_util"
+
 	"github.com/labstack/echo"
 )
 
 func SignUpHandler(c echo.Context, authCase authUseCase.IAuthUseCase) error {
-	reqBody, err := serializer.Decode[entity.CreateUserRequest](c)
+	reqBody, err := http_util.Decode[entity.CreateUserRequest](c)
 
 	if err != nil {
-		return serializer.Encode(c, http.StatusBadRequest, map[string]string{"error": "invalid request"})
+		return http_util.Encode(c, http.StatusBadRequest, map[string]string{"error": "invalid request"})
 	}
 
 	problems := reqBody.Validate(c.Request().Context())
 
 	if len(problems) != 0 {
-		return serializer.Encode(c, 400, serializer.JSONResponse{
+		return http_util.Encode(c, 400, http_util.JSONResponse{
 			Message: "Bad request check your request",
 		})
 	}
 
-	_, err = (authCase).SignupUser(c.Request().Context(), reqBody)
+	user, err := (authCase).SignupUser(c.Request().Context(), reqBody)
 
 	if err != nil {
-		return serializer.Encode(c, http.StatusInternalServerError, map[string]string{"error": "failed to sign up"})
+		return http_util.Encode(c, http.StatusInternalServerError, map[string]string{"error": "failed to sign up"})
 	}
 
-	return serializer.Encode(c, http.StatusOK, map[string]string{"message": "Sign-up successful"})
+	response := entity.SignUpResponse{
+		ID:       int(user.ID),
+		Username: user.Username,
+		Name:     user.Name,
+		Email:    user.Email,
+	}
+
+	return http_util.Encode(c, http.StatusOK, http_util.HTTPResponse[entity.SignUpResponse]{
+		Message: "Sign-up successful",
+		Data:    response,
+	})
 }
 
 func SignInHandler(c echo.Context, authCase authUseCase.IAuthUseCase) error {
-	reqBody, err := serializer.Decode[entity.SignInRequest](c)
+	reqBody, err := http_util.Decode[entity.SignInRequest](c)
 
 	if err != nil {
-		return serializer.Encode(c, http.StatusBadRequest, map[string]string{"error": "invalid request"})
+		return http_util.Encode(c, http.StatusBadRequest, map[string]string{"error": "invalid request"})
 	}
 
 	problems := reqBody.Validate(c.Request().Context())
 
 	if len(problems) != 0 {
-		return serializer.Encode(c, 400, serializer.JSONResponse{
+		return http_util.Encode(c, 400, http_util.JSONResponse{
 			Message: "Bad request check your request",
 		})
 	}
 
-	jwtToken, err := (authCase).SignIn(c.Request().Context(), reqBody.Email, reqBody.Username, reqBody.Password)
+	jwtToken, err := authCase.SignIn(c.Request().Context(), reqBody.Email, reqBody.Username, reqBody.Password)
 
 	if err != nil {
-		return serializer.Encode(c, http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
+		return http_util.Encode(c, http.StatusUnauthorized, http_util.HTTPErrorResponse[entity.SignInResponse]{
+			Errors: []http_util.ErrorResponse{{Property: "request", Detail: "invalid credentials"}},
+		})
 	}
 
-	return serializer.Encode(c, http.StatusOK, map[string]string{"token": jwtToken})
+	return http_util.Encode(c, http.StatusOK, http_util.HTTPResponse[entity.SignInResponse]{
+		Message: "Sign-in successful",
+		Data:    entity.SignInResponse{Token: jwtToken},
+	})
 }

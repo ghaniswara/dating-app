@@ -11,10 +11,12 @@ import (
 
 	"github.com/ghaniswara/dating-app/internal/config"
 	"github.com/ghaniswara/dating-app/internal/datastore/postgres"
+	matchRepo "github.com/ghaniswara/dating-app/internal/repository/match"
 	userRepo "github.com/ghaniswara/dating-app/internal/repository/user"
 	routesV1 "github.com/ghaniswara/dating-app/internal/routes/v1"
 	authUseCase "github.com/ghaniswara/dating-app/internal/usecase/auth"
 	"github.com/ghaniswara/dating-app/internal/usecase/match"
+	"github.com/go-redis/redis"
 	"github.com/labstack/echo"
 	"gorm.io/gorm"
 )
@@ -82,8 +84,18 @@ func NewServer(ctx context.Context, w io.Writer, env string) *Server {
 		ctx.Err()
 	}
 
+	redis := redis.NewClient(&redis.Options{
+		Addr: config.Get("REDIS_HOST") + ":" + config.Get("REDIS_PORT"),
+	})
+
 	userRepo := userRepo.New(database)
+	matchRepo := matchRepo.NewMatchRepo(database, redis)
 	authUC := authUseCase.New(userRepo)
+	matchUC := match.NewMatchUseCase(
+		userRepo,
+		redis,
+		matchRepo,
+	)
 
 	var PORT = config.Get("PORT")
 
@@ -92,8 +104,10 @@ func NewServer(ctx context.Context, w io.Writer, env string) *Server {
 			Addr:    ":" + PORT,
 			Handler: e,
 		},
-		database:    database,
-		authUseCase: authUC,
+		database:     database,
+		authUseCase:  authUC,
+		matchUseCase: matchUC,
+		userRepo:     userRepo,
 	}
 
 	server.RegisterRoutes(e)

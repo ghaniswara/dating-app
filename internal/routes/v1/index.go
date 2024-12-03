@@ -30,11 +30,11 @@ func InitV1Routes(
 	matchGroup.GET("/profile", func(c echo.Context) error {
 		return routesV1Match.GetProfileHandler(c, matchCase)
 	})
-	matchGroup.POST("/:id/like", func(c echo.Context) error {
+	matchGroup.POST("/profile/:id/like", func(c echo.Context) error {
 		return routesV1Match.LikeHandler(c, matchCase)
 	})
 
-	matchGroup.POST("/:id/pass", func(c echo.Context) error {
+	matchGroup.POST("/profile/:id/pass", func(c echo.Context) error {
 		return routesV1Match.PassHandler(c, matchCase)
 	})
 }

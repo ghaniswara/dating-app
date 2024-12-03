@@ -59,3 +59,11 @@ func (r *SignInRequest) Validate(ctx context.Context) (problems map[string][]str
 
 	return problems
 }
+
+type MatchLikeRequest struct {
+	IsSuperLike bool `json:"is_super_like"`
+}
+
+type MatchGetProfileRequest struct {
+	ExcludeProfiles []int `json:"exclude_profiles"`
+}

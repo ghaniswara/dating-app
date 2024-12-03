@@ -11,7 +11,7 @@ var secretKey = []byte("your_secret_key") // Change this to a secure key
 
 type jwtUserDataClaims struct {
 	jwt.RegisteredClaims
-	UserID   int    `json:"id"`
+	UserID   int    `json:"user_id"`
 	Username string `json:"username"`
 }
 

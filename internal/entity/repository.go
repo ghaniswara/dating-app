@@ -4,20 +4,23 @@ import "time"
 
 // TODO Refactor premium to use payment transaction table
 type User struct {
-	ID       uint   `gorm:"primaryKey;column:id"`
-	Name     string `gorm:"not null;column:name"`
-	Email    string `gorm:"unique;not null;column:email"`
-	Username string `gorm:"unique;column:username"`
-	Password string `gorm:"not null;column:password"`
-	Premium  bool   `gorm:"not null;column:premium"`
+	ID        uint      `gorm:"primaryKey;column:id"`
+	Name      string    `gorm:"not null;column:name"`
+	Email     string    `gorm:"unique;not null;column:email"`
+	Username  string    `gorm:"unique;column:username"`
+	Password  string    `gorm:"not null;column:password"`
+	IsPremium bool      `gorm:"not null;column:is_premium"`
+	CreatedAt time.Time `gorm:"column:created_at;type:timestamp;not null"`
+	UpdatedAt time.Time `gorm:"column:updated_at;type:timestamp;not null"`
 }
 
-type LikeTransaction struct {
-	UserID    uint      `gorm:"column:user_id;not null;primaryKey"`
-	LikesToID uint      `gorm:"column:likes_to_id;not null;primaryKey"`
-	Date      time.Time `gorm:"column:date;type:date;not null;primaryKey"`
-	Action    Action    `gorm:"column:action;type:smallint;not null"`
-	Time      time.Time `gorm:"column:timestamp;type:timestamp;not null"`
+type SwipeTransaction struct {
+	ID     uint      `gorm:"primaryKey;column:id"`
+	UserID uint      `gorm:"column:user_id;not null"`
+	ToID   uint      `gorm:"column:to_id;not null"`
+	Date   time.Time `gorm:"column:date;type:date;not null"`
+	Action Action    `gorm:"column:action;type:smallint;not null"`
+	Time   time.Time `gorm:"column:timestamp;type:timestamp;not null"`
 
 	// Snapshot field, allow quick fetch of list of liked profiles
 	// For fetching list of matched profiles
@@ -35,13 +38,13 @@ const (
 func (a Action) String() string {
 	switch a {
 	case ActionLike:
-		return "Like"
+		return "like"
 	case ActionPass:
-		return "Pass"
+		return "pass"
 	case ActionSuperLike:
-		return "SuperLike"
+		return "superlike"
 	default:
-		return "Unknown"
+		return "unknown"
 	}
 }
 
