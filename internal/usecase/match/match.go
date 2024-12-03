@@ -1,4 +1,4 @@
-package profile
+package match
 
 import (
 	"context"
@@ -9,8 +9,8 @@ import (
 	"github.com/go-redis/redis"
 )
 
-type iMatchUseCase interface {
-	GetDatingProfiles(ctx context.Context, userID int) ([]entity.User, error)
+type IMatchUseCase interface {
+	GetDatingProfiles(ctx context.Context, userID int, excludeProfiles []int, limit int) ([]entity.User, error)
 	SwipeDatingProfile(ctx context.Context, userID int, likedToUserID int, action entity.Action) (entity.Outcome, error)
 }
 
@@ -19,14 +19,14 @@ type matchUseCase struct {
 	matchRepo matchRepo.IMatchRepo
 }
 
-func NewMatchUseCase(userRepo userRepo.IUserRepo, redisCache *redis.Client, matchRepo matchRepo.IMatchRepo) iMatchUseCase {
+func NewMatchUseCase(userRepo userRepo.IUserRepo, redisCache *redis.Client, matchRepo matchRepo.IMatchRepo) IMatchUseCase {
 	return &matchUseCase{
 		userRepo:  userRepo,
 		matchRepo: matchRepo,
 	}
 }
 
-func (m *matchUseCase) GetDatingProfiles(ctx context.Context, userID int) ([]entity.User, error) {
+func (m *matchUseCase) GetDatingProfiles(ctx context.Context, userID int, excludeProfiles []int, limit int) ([]entity.User, error) {
 	likedProfiles, err := m.matchRepo.GetTodayLikedProfiles(ctx, userID)
 
 	if err != nil {
@@ -39,7 +39,10 @@ func (m *matchUseCase) GetDatingProfiles(ctx context.Context, userID int) ([]ent
 		return nil, err
 	}
 
-	profiles, err := m.matchRepo.GetDatingProfiles(ctx, userID, append(likedProfiles, matchedProfiles...), 10)
+	excludeProfiles = append(excludeProfiles, likedProfiles...)
+	excludeProfiles = append(excludeProfiles, matchedProfiles...)
+
+	profiles, err := m.matchRepo.GetDatingProfiles(ctx, userID, excludeProfiles, limit)
 
 	if err != nil {
 		return nil, err
