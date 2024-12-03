@@ -69,14 +69,23 @@ func (m *MatchRepo) GetTodayLikedProfiles(ctx context.Context, userID int) ([]in
 	return profiles, nil
 }
 
+// TODO
+// Refactor to use join table with the SwipeTransaction table
+// With the new table, we can get the ranking of the user
 func (m *MatchRepo) GetDatingProfiles(ctx context.Context, userID int, excludeProfiles []int, limit int) ([]entity.User, error) {
 	var profiles []entity.User
 
+	// Create a subquery to select random IDs
+	subquery := m.db.WithContext(ctx).
+		Model(&entity.User{}).
+		Select("id").
+		Where("id NOT IN ?", append(excludeProfiles, userID)).
+		Order("RANDOM()").
+		Limit(limit + 10)
+
 	res := m.db.WithContext(ctx).
 		Model(&entity.User{}).
-		Select("name").
-		Where("id NOT IN ?", append(excludeProfiles, userID)).
-		Limit(limit).
+		Where("id IN (?)", subquery).
 		Find(&profiles)
 
 	return profiles, res.Error
