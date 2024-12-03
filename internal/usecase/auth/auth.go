@@ -51,7 +51,7 @@ func (p *authUseCase) SignIn(ctx context.Context, email, username, password stri
 		return "", err
 	}
 
-	token, err := jwt.CreateToken(user.Username, user.Email)
+	token, err := jwt.CreateToken(int(user.ID), user.Username)
 	if err != nil {
 		return "", err
 	}

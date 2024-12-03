@@ -11,16 +11,16 @@ var secretKey = []byte("your_secret_key") // Change this to a secure key
 
 type jwtUserDataClaims struct {
 	jwt.RegisteredClaims
-	ID       string `json:"id"`
+	UserID   int    `json:"id"`
 	Username string `json:"username"`
 }
 
-func CreateToken(name, username string) (string, error) {
+func CreateToken(id int, username string) (string, error) {
 	claims := jwtUserDataClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 		},
-		ID:       name,
+		UserID:   id,
 		Username: username,
 	}
 
