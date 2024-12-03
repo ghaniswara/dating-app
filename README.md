@@ -38,7 +38,7 @@ Repository URL : https://github.com/ghaniswara/dating-app
 ## Running the Test
 For the test we're using Ory/Dockertest which allows us to run integration test with dockerized database
 Simply run `go test ./test/*` which will run all the test cases
-If an error eccountered due to port collision, you need to run the test separately for the Auth and Match Cases 
+If an error eccountered due to port collision, you need to run the test separately for the Auth and Match Cases this is due to TestMain in both test cases is running on the same port
 
 - Auth Test
     ```
@@ -48,6 +48,8 @@ If an error eccountered due to port collision, you need to run the test separate
     ```
     `$ go test ./test/match`
     ```
+
+     >⚠️ Will currently fail for the Match Test, due to `TestNoSameProfile` is implemented without parallel test in mind, which will cause data to be inconsistent,
 
 
 ## Functional & Non-Functional Requirements

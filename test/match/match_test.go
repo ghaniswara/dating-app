@@ -15,6 +15,7 @@ import (
 	matchRepository "github.com/ghaniswara/dating-app/internal/repository/match"
 	"github.com/ghaniswara/dating-app/pkg/http_util"
 	helper_test "github.com/ghaniswara/dating-app/test/helper"
+	"github.com/go-faker/faker/v4"
 	"gotest.tools/assert"
 )
 
@@ -47,12 +48,16 @@ func TestLike(t *testing.T) {
 		t.Fatalf("Failed to populate users: %s", err)
 	}
 
-	user, err := helper_test.SignUpUser(t, "testuser1", "password123", "test@example.com")
+	username := faker.Username()
+	password := faker.Password()
+	email := faker.Email()
+
+	user, err := helper_test.SignUpUser(t, username, password, email)
 	if err != nil {
 		t.Fatalf("Failed to sign up user: %s", err)
 	}
 
-	token, err := helper_test.SignInUser(t, "test@example.com", "testuser1", "password123")
+	token, err := helper_test.SignInUser(t, email, username, password)
 
 	if err != nil {
 		t.Fatalf("Failed to create token: %s", err)
@@ -109,12 +114,16 @@ func TestPass(t *testing.T) {
 		globalResources.Redis,
 	)
 
-	user, err := helper_test.SignUpUser(t, "testuser1", "password123", "test@example.com")
+	username := faker.Username()
+	password := faker.Password()
+	email := faker.Email()
+
+	user, err := helper_test.SignUpUser(t, username, password, email)
 	if err != nil {
 		t.Fatalf("Failed to sign up user: %s", err)
 	}
 
-	token, err := helper_test.SignInUser(t, user.Email, user.Username, "password123")
+	token, err := helper_test.SignInUser(t, email, username, password)
 
 	if err != nil {
 		t.Fatalf("Failed to create token: %s", err)
@@ -145,36 +154,38 @@ func TestPass(t *testing.T) {
 }
 
 func TestMatch(t *testing.T) {
-	// Create 2 profiles
-	profiles, err := helper_test.PopulateUsers(globalResources.ORM, 2)
-	if err != nil {
-		t.Fatalf("Failed to populate profiles: %s", err)
-	}
-
 	// Create a user1 using the test_helper
-	user1, err := helper_test.SignUpUser(t, "testuser1", "password123", "test@example.com")
+	username := faker.Username()
+	password := faker.Password()
+	email := faker.Email()
+
+	user1, err := helper_test.SignUpUser(t, username, password, email)
 	if err != nil {
 		t.Fatalf("Failed to sign up user: %s", err)
 	}
 
-	token1, err := helper_test.SignInUser(t, user1.Email, user1.Username, "password123")
+	token1, err := helper_test.SignInUser(t, email, username, password)
 	if err != nil {
 		t.Fatalf("Failed to sign in user: %s", err)
 	}
 
 	// Create a user2 using the test_helper
-	user2, err := helper_test.SignUpUser(t, "testuser2", "password123", "test2@example.com")
+	username2 := faker.Username()
+	password2 := faker.Password()
+	email2 := faker.Email()
+
+	user2, err := helper_test.SignUpUser(t, username2, password2, email2)
 	if err != nil {
 		t.Fatalf("Failed to sign up user: %s", err)
 	}
 
-	token2, err := helper_test.SignInUser(t, user2.Email, user2.Username, "password123")
+	token2, err := helper_test.SignInUser(t, email2, username2, password2)
 	if err != nil {
 		t.Fatalf("Failed to sign in user: %s", err)
 	}
 
-	resp1 := createMatchRequest(t, token1, profiles[1].ID, entity.ActionLike)
-	resp2 := createMatchRequest(t, token2, profiles[0].ID, entity.ActionLike)
+	resp1 := createMatchRequest(t, token1, uint(user2.ID), entity.ActionLike)
+	resp2 := createMatchRequest(t, token2, uint(user1.ID), entity.ActionLike)
 
 	matchRepo := matchRepository.NewMatchRepo(
 		globalResources.ORM,
@@ -193,8 +204,8 @@ func TestMatch(t *testing.T) {
 
 	assert.Equal(t, len(matchedProfiles1), 1)
 	assert.Equal(t, len(matchedProfiles2), 1)
-	assert.Equal(t, matchedProfiles1[0], profiles[0].ID)
-	assert.Equal(t, matchedProfiles2[0], profiles[1].ID)
+	assert.Equal(t, matchedProfiles1[0], (user2.ID))
+	assert.Equal(t, matchedProfiles2[0], (user1.ID))
 	assert.Equal(t, resp1.OutcomeEnum, entity.OutcomeNoLike)
 	assert.Equal(t, resp2.OutcomeEnum, entity.OutcomeMatch)
 }
@@ -207,12 +218,21 @@ func TestLikeLimit(t *testing.T) {
 	}
 
 	// Create a user using the test_helper
-	user, err := helper_test.SignUpUser(t, "testuser1", "password123", "test@example.com")
+	username := faker.Username()
+	password := faker.Password()
+	email := faker.Email()
+
+	user, err := helper_test.SignUpUser(
+		t,
+		username,
+		password,
+		email,
+	)
 	if err != nil {
 		t.Fatalf("Failed to sign up user: %s", err)
 	}
 
-	token, err := helper_test.SignInUser(t, user.Email, user.Username, "password123")
+	token, err := helper_test.SignInUser(t, email, username, password)
 	if err != nil {
 		t.Fatalf("Failed to sign in user: %s", err)
 	}
@@ -242,6 +262,8 @@ func TestLikeLimit(t *testing.T) {
 	assert.Equal(t, likesCount, 10)
 }
 
+// TODO : refactor for parallel test (go test ./test/match/*)
+// Will fail on parallel test
 func TestNoSameProfile(t *testing.T) {
 	// Create 10 profiles
 	profiles, err := helper_test.PopulateUsers(globalResources.ORM, 10)
@@ -250,12 +272,17 @@ func TestNoSameProfile(t *testing.T) {
 	}
 
 	// Create a user using the test_helper
-	user, err := helper_test.SignUpUser(t, "testuser1", "password123", "test@example.com")
+	username := faker.Username()
+	password := faker.Password()
+	email := faker.Email()
+
+	_, err = helper_test.SignUpUser(t, username, password, email)
+
 	if err != nil {
 		t.Fatalf("Failed to sign up user: %s", err)
 	}
 
-	token, err := helper_test.SignInUser(t, user.Email, user.Username, "password123")
+	token, err := helper_test.SignInUser(t, email, username, password)
 
 	if err != nil {
 		t.Fatalf("Failed to sign in user: %s", err)
@@ -278,6 +305,7 @@ func TestNoSameProfile(t *testing.T) {
 	}
 
 	assert.Equal(t, len(matchProfiles), 6)
+
 }
 
 func createMatchRequest(t *testing.T, token string, profileID uint, method entity.Action) entity.MatchSwipeResponse {
@@ -361,8 +389,6 @@ func getMatchProfiles(t *testing.T, token string, excludeIDs []int) ([]entity.Us
 	if err != nil {
 		t.Fatalf("Failed to read response body: %v", err)
 	}
-
-	t.Logf("Response: %v", string(bodyBytes))
 
 	response := http_util.HTTPResponse[entity.MatchGetProfileResponse]{}
 	response, err = http_util.DecodeBody(bodyBytes, response)

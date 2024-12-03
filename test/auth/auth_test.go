@@ -67,7 +67,7 @@ func TestSignUp(t *testing.T) {
 func TestSignIn(t *testing.T) {
 	reqBody := entity.SignInRequest{
 		Email:    "asd@asd.com",
-		Username: "testuser",
+		Username: "testuser123",
 		Password: "password123",
 	}
 
