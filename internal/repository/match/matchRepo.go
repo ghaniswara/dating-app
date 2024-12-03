@@ -128,7 +128,7 @@ func (m *MatchRepo) CreateSwipe(ctx context.Context, userID int, likedToUserID i
 
 		resPair := m.db.WithContext(ctx).
 			Model(&entity.SwipeTransaction{}).
-			Where("user_id = ? AND likes_to_id = ? AND action = ?", likedToUserID, userID, entity.ActionLike).
+			Where("user_id = ? AND to_id = ? AND action = ?", likedToUserID, userID, entity.ActionLike).
 			First(&pair)
 
 		if resPair.Error != nil && resPair.Error != gorm.ErrRecordNotFound {
@@ -153,7 +153,7 @@ func (m *MatchRepo) CreateSwipe(ctx context.Context, userID int, likedToUserID i
 	}
 	// update the pair to isMatched if both profile like each other
 	if pair != nil && action == entity.ActionLike {
-		res := m.db.WithContext(ctx).Model(&entity.SwipeTransaction{}).Where("user_id = ? AND likes_to_id = ?", likedToUserID, userID).Update("is_matched", true)
+		res := m.db.WithContext(ctx).Model(&entity.SwipeTransaction{}).Where("user_id = ? AND to_id = ?", likedToUserID, userID).Update("is_matched", true)
 		if res.Error != nil {
 			return 0, res.Error
 		}
@@ -179,7 +179,7 @@ func (m *MatchRepo) GetMatchedProfilesIDs(ctx context.Context, userID int) ([]in
 	if err == redis.Nil {
 		res := m.db.WithContext(ctx).
 			Model(&entity.SwipeTransaction{}).
-			Select("likes_to_id").
+			Select("to_id").
 			Where("user_id = ? AND is_matched = ?", userID, true).
 			Find(&profiles)
 
