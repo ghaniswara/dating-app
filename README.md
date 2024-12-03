@@ -1,6 +1,8 @@
 # dating-app
 A dating app backend service using golang, utilize Echo for routing, GORM for ORM, PostgreSQL as the database, and Redis for caching.
 
+Repository URL : https://github.com/ghaniswara/dating-app
+
 ## Server Structure
 - /internal/config : Configuration Loader for the Server
 - /internal/routes : Routes for the Server
@@ -59,4 +61,67 @@ erDiagram
 
     USERS ||--o{ SWIPE_TRANSACTIONS : "makes"
     USERS ||--o{ SWIPE_TRANSACTIONS : "receives"
+```
+
+## Sequence Diagram
+
+### Match Repository
+* Create Swipe Transaction
+```mermaid
+sequenceDiagram
+    participant User
+    participant MatchRepo
+    participant DB
+    participant Redis
+
+    User->>MatchRepo: CreateSwipe(ctx, userID, likedToUserID, action)
+    MatchRepo->>DB: Check if liked profile exists (likedToUserID)
+    DB-->>MatchRepo: Return likedProfileRes
+    alt Profile Not Found
+        MatchRepo-->>User: OutcomeNotFound
+    else Profile Found
+        alt Action is Like or SuperLike
+            MatchRepo->>Redis: Increment liked count cache
+            MatchRepo->>Redis: Append liked profiles cache
+            MatchRepo->>DB: Check if both profiles like each other
+            DB-->>MatchRepo: Return resPair
+            alt Pair Found
+                MatchRepo->>DB: Create SwipeTransaction
+                DB-->>MatchRepo: Return res
+                MatchRepo->>DB: Update isMatched for pair
+                DB-->>MatchRepo: Return update result
+                MatchRepo->>Redis: Append match profiles cache
+                MatchRepo-->>User: OutcomeMatch
+            else Pair Not Found
+                MatchRepo->>DB: Create SwipeTransaction
+                DB-->>MatchRepo: Return res
+                MatchRepo-->>User: OutcomeNoLike
+            end
+        else Action is Pass
+            MatchRepo-->>User: OutcomeMissed
+        end
+    end
+```
+
+* Get Matched Profiles IDs
+```mermaid
+sequenceDiagram
+    participant User
+    participant MatchRepo
+    participant DB
+    participant Redis
+
+    User->>MatchRepo: GetMatchedProfilesIDs(ctx, userID)
+    MatchRepo->>Redis: Check for matched profiles (profilesKey)
+    Redis-->>MatchRepo: Return profiles or redis.Nil
+    alt Profiles Found
+        MatchRepo-->>User: Return profiles
+    else No Profiles Found
+        MatchRepo->>DB: Query SwipeTransaction for matched profiles
+        DB-->>MatchRepo: Return profiles
+        MatchRepo->>Redis: Add matched profiles to Redis
+        Redis-->>MatchRepo: Confirm addition
+        MatchRepo->>Redis: Set expiration for profilesKey
+        MatchRepo-->>User: Return profiles
+    end
 ```
