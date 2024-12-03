@@ -35,6 +35,16 @@ Repository URL : https://github.com/ghaniswara/dating-app
     ```
 4. Run the server using `go run . dev`
 
+## Functional & Non-Functional Requirements
+### Functional Requirements
+
+### Non-Functional Requirements
+1. User can likes and pass other users
+2. User can likes up to 10 times for free, if user want to increase the limit, user need to buy the premium subscription
+3. User will only see dating profile that they haven't swiped yet
+4. When like a profile which like back, user will notified immediately
+5. When user pass a profile which likes the user back, user will notified immediately that he missed the chance to match with that profile
+
 ## ER Diagram
 ```mermaid
 erDiagram
@@ -123,5 +133,74 @@ sequenceDiagram
         Redis-->>MatchRepo: Confirm addition
         MatchRepo->>Redis: Set expiration for profilesKey
         MatchRepo-->>User: Return profiles
+    end
+```
+### Match Usecase
+* Get Dating Profiles
+```mermaid
+sequenceDiagram
+    participant User
+    participant MatchUseCase
+    participant MatchRepo
+    participant DB
+
+    User->>MatchUseCase: GetDatingProfiles(ctx, userID, excludeProfiles, limit)
+    MatchUseCase->>MatchRepo: GetTodayLikedProfilesIDs(ctx, userID)
+    MatchRepo-->>MatchUseCase: Return likedProfiles or error
+    alt Error Occurred
+        MatchUseCase-->>User: Return error
+    else No Error
+        MatchUseCase->>MatchRepo: GetMatchedProfilesIDs(ctx, userID)
+        MatchRepo-->>MatchUseCase: Return matchedProfiles or error
+        alt Error Occurred
+            MatchUseCase-->>User: Return error
+        else No Error
+            MatchUseCase->>MatchUseCase: Append likedProfiles and matchedProfiles to excludeProfiles
+            MatchUseCase->>MatchRepo: GetDatingProfilesIDs(ctx, userID, excludeProfiles, limit)
+            MatchRepo-->>MatchUseCase: Return profiles or error
+            alt Error Occurred
+                MatchUseCase-->>User: Return error
+            else No Error
+                MatchUseCase-->>User: Return profiles
+            end
+        end
+    end
+```
+
+* Swipe Dating Profile
+```mermaid
+sequenceDiagram
+    participant User
+    participant MatchUseCase
+    participant MatchRepo
+    participant UserRepo
+
+    User->>MatchUseCase: SwipeDatingProfile(ctx, userID, likedToUserID, action)
+    MatchUseCase->>MatchRepo: GetTodayLikesCount(ctx, userID)
+    MatchRepo-->>MatchUseCase: Return likesCount or error
+    alt Error Occurred
+        MatchUseCase-->>User: Return error
+    else No Error
+        MatchUseCase->>UserRepo: GetUserByID(ctx, likedToUserID)
+        UserRepo-->>MatchUseCase: Return user or error
+        alt Error Occurred
+            MatchUseCase-->>User: Return error
+        else No Error
+            alt Likes Limit Reached
+                MatchUseCase-->>User: OutcomeLimitReached
+            else Likes Limit Not Reached
+                MatchUseCase->>MatchRepo: CreateSwipe(ctx, userID, likedToUserID, action)
+                MatchRepo-->>MatchUseCase: Return Outcome or error
+                alt Error Occurred
+                    MatchUseCase-->>User: Return error
+                else No Error
+                    alt Outcome is Match
+                        MatchUseCase-->>User: OutcomeMatch
+                    else Outcome is Not Match
+                        MatchUseCase-->>User: Return Outcome
+                    end
+                end
+            end
+        end
     end
 ```
