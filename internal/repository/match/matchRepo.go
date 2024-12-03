@@ -14,7 +14,7 @@ import (
 
 type IMatchRepo interface {
 	// User Table
-	GetDatingProfilesIDs(ctx context.Context, userID int, excludeIDs []int, limit int) ([]entity.User, error)
+	GetDatingProfiles(ctx context.Context, userID int, excludeIDs []int, limit int) ([]entity.User, error)
 
 	// SwipeTransaction Table
 
@@ -87,8 +87,8 @@ func (m *MatchRepo) GetTodayLikedProfilesIDs(ctx context.Context, userID int) ([
 			return nil, err
 		}
 
-		if err := m.rdb.SAdd(profilesKey, profiles).Err(); err != nil {
-			log.Println("error adding liked profiles to redis", err)
+		for _, v := range profiles {
+			m.rdb.SAdd(profilesKey, v)
 		}
 
 		m.rdb.Expire(profilesKey, getTTL())
@@ -105,13 +105,13 @@ func (m *MatchRepo) GetTodayLikedProfilesIDs(ctx context.Context, userID int) ([
 // TODO
 // Refactor to use join table with the SwipeTransaction table
 // With the new table, we can get the ranking of the user
-func (m *MatchRepo) GetDatingProfilesIDs(ctx context.Context, userID int, excludeProfiles []int, limit int) ([]entity.User, error) {
+func (m *MatchRepo) GetDatingProfiles(ctx context.Context, userID int, excludeProfiles []int, limit int) ([]entity.User, error) {
 	var profiles []entity.User
 
 	// Create a subquery to select random IDs
 	subquery := m.db.WithContext(ctx).
 		Model(&entity.User{}).
-		Select("id, name").
+		Select("id").
 		Where("id NOT IN ?", append(excludeProfiles, userID)).
 		Order("RANDOM()").
 		Limit(limit + 10)

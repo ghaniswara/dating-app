@@ -11,14 +11,18 @@ import (
 	"github.com/labstack/echo"
 )
 
-func GetProfileHandler(c echo.Context, matchCase match.IMatchUseCase) error {
+func GetProfileHandler(c echo.Context, matchCase match.IMatchUseCase, authCase authUseCase.IAuthUseCase) error {
 	request, err := http_util.Decode[entity.MatchGetProfileRequest](c)
 
 	if err != nil {
 		return http_util.Encode(c, http.StatusBadRequest, map[string]string{"error": "invalid request"})
 	}
 
-	user := c.Request().Context().Value("userProfile").(*entity.User)
+	user, err := authCase.GetUserFromJWTRequest(c)
+
+	if err != nil {
+		return http_util.Encode(c, http.StatusUnauthorized, map[string]string{"error": "invalid token"})
+	}
 
 	profiles, err := matchCase.GetDatingProfiles(c.Request().Context(), int(user.ID), request.ExcludeProfiles, 10)
 

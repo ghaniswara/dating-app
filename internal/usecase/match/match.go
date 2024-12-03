@@ -42,7 +42,7 @@ func (m *matchUseCase) GetDatingProfiles(ctx context.Context, userID int, exclud
 	excludeProfiles = append(excludeProfiles, likedProfiles...)
 	excludeProfiles = append(excludeProfiles, matchedProfiles...)
 
-	profiles, err := m.matchRepo.GetDatingProfilesIDs(ctx, userID, excludeProfiles, limit)
+	profiles, err := m.matchRepo.GetDatingProfiles(ctx, userID, excludeProfiles, limit)
 
 	if err != nil {
 		return nil, err

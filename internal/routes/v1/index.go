@@ -28,7 +28,7 @@ func InitV1Routes(
 
 	matchGroup := v1.Group("/match", middleware.JWTMiddleware())
 	matchGroup.GET("/profile", func(c echo.Context) error {
-		return routesV1Match.GetProfileHandler(c, matchCase)
+		return routesV1Match.GetProfileHandler(c, matchCase, authCase)
 	})
 	matchGroup.POST("/profile/:id/like", func(c echo.Context) error {
 		return routesV1Match.LikeHandler(c, matchCase, authCase)

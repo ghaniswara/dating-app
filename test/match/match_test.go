@@ -331,7 +331,7 @@ func createMatchRequest(t *testing.T, token string, profileID uint, method entit
 }
 
 func getMatchProfiles(t *testing.T, token string, excludeIDs []int) ([]entity.User, error) {
-	requestURL := "http://localhost:8080/v1/match/profile/"
+	requestURL := "http://localhost:8080/v1/match/profile"
 
 	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
@@ -353,16 +353,23 @@ func getMatchProfiles(t *testing.T, token string, excludeIDs []int) ([]entity.Us
 		t.Fatalf("Failed to send request: %s", err)
 	}
 
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status code %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("Failed to read response body: %v", err)
 	}
 
-	response := http_util.HTTPErrorResponse[[]entity.User]{}
-	response, err = http_util.DecodeBody[http_util.HTTPErrorResponse[[]entity.User]](bodyBytes, response)
+	t.Logf("Response: %v", string(bodyBytes))
+
+	response := http_util.HTTPResponse[entity.MatchGetProfileResponse]{}
+	response, err = http_util.DecodeBody(bodyBytes, response)
+
 	if err != nil {
 		t.Fatalf("Failed to decode response: %s", err)
 	}
 
-	return response.Data, nil
+	return response.Data.Profiles, nil
 }
