@@ -2,6 +2,7 @@ package entity
 
 import (
 	"context"
+	"regexp"
 )
 
 type CreateUserRequest struct {
@@ -51,6 +52,13 @@ func (r *SignInRequest) Validate(ctx context.Context) (problems map[string][]str
 
 	if r.Email == "" && r.Username == "" {
 		problems["Email/Username"] = append(problems["Email/Username"], "Either Email or Username is required")
+	}
+
+	if r.Email != "" {
+		emailRegex := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+		if !regexp.MustCompile(emailRegex).MatchString(r.Email) {
+			problems["Email"] = append(problems["Email"], "Invalid email format")
+		}
 	}
 
 	if r.Password == "" {

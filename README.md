@@ -244,3 +244,29 @@ sequenceDiagram
 ```
 
 ## Test Cases
+
+### Auth Case
+1. Should Success on valid sign up form
+2. Should Return error on invalid sign up form
+    - Email is empty
+    - Email is invalid
+    - Username is empty
+    - Password is empty
+3. Should Success on valid sign in form
+4. Should Return error on invalid sign in form
+    - Email/Username is empty
+    - Email is invalid
+    - Password is empty
+
+### Match Usecase
+
+1. Should Success on get dating profiles
+2. Should not return same profile which has been swiped by the user on that day
+3. Should not return a profile which has been matched with the user
+4. Should Success on swipe dating profile
+    - Return OutcomeMatch when user swipe like and the profile likes the user back
+    - Return OutcomeNoLike when user swipe like and the profile doesn't like the user back
+    - Return OutcomeMissed when user swipe pass
+5. Should Return OutcomeLimitReached when non premium user swipe like more than 10 times 
+6. Should not be able to like nonexistent user
+
