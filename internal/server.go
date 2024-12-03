@@ -14,6 +14,7 @@ import (
 	userRepo "github.com/ghaniswara/dating-app/internal/repository/user"
 	routesV1 "github.com/ghaniswara/dating-app/internal/routes/v1"
 	authUseCase "github.com/ghaniswara/dating-app/internal/usecase/auth"
+	"github.com/ghaniswara/dating-app/internal/usecase/match"
 	"github.com/labstack/echo"
 	"gorm.io/gorm"
 )
@@ -44,9 +45,11 @@ func Run(ctx context.Context, w io.Writer, args []string) error {
 }
 
 type Server struct {
-	httpServer  *http.Server
-	database    *gorm.DB
-	authUseCase authUseCase.IAuthUseCase
+	httpServer   *http.Server
+	database     *gorm.DB
+	authUseCase  authUseCase.IAuthUseCase
+	matchUseCase match.IMatchUseCase
+	userRepo     userRepo.IUserRepo
 }
 
 func NewServer(ctx context.Context, w io.Writer, env string) *Server {
@@ -99,7 +102,7 @@ func NewServer(ctx context.Context, w io.Writer, env string) *Server {
 
 func (s *Server) RegisterRoutes(e *echo.Echo) {
 	e.GET("/health", s.handleHealthCheck)
-	routesV1.InitV1Routes(e, &s.authUseCase)
+	routesV1.InitV1Routes(e, s.authUseCase, s.matchUseCase, s.userRepo)
 }
 
 func (s *Server) StartServer() error {

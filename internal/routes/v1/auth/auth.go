@@ -9,7 +9,7 @@ import (
 	"github.com/labstack/echo"
 )
 
-func SignUpHandler(c echo.Context, authCase *authUseCase.IAuthUseCase) error {
+func SignUpHandler(c echo.Context, authCase authUseCase.IAuthUseCase) error {
 	reqBody, err := serializer.Decode[entity.CreateUserRequest](c)
 
 	if err != nil {
@@ -24,7 +24,7 @@ func SignUpHandler(c echo.Context, authCase *authUseCase.IAuthUseCase) error {
 		})
 	}
 
-	_, err = (*authCase).SignupUser(c.Request().Context(), reqBody)
+	_, err = (authCase).SignupUser(c.Request().Context(), reqBody)
 
 	if err != nil {
 		return serializer.Encode(c, http.StatusInternalServerError, map[string]string{"error": "failed to sign up"})
@@ -33,7 +33,7 @@ func SignUpHandler(c echo.Context, authCase *authUseCase.IAuthUseCase) error {
 	return serializer.Encode(c, http.StatusOK, map[string]string{"message": "Sign-up successful"})
 }
 
-func SignInHandler(c echo.Context, authCase *authUseCase.IAuthUseCase) error {
+func SignInHandler(c echo.Context, authCase authUseCase.IAuthUseCase) error {
 	reqBody, err := serializer.Decode[entity.SignInRequest](c)
 
 	if err != nil {
@@ -48,7 +48,7 @@ func SignInHandler(c echo.Context, authCase *authUseCase.IAuthUseCase) error {
 		})
 	}
 
-	jwtToken, err := (*authCase).SignIn(c.Request().Context(), reqBody.Email, reqBody.Username, reqBody.Password)
+	jwtToken, err := (authCase).SignIn(c.Request().Context(), reqBody.Email, reqBody.Username, reqBody.Password)
 
 	if err != nil {
 		return serializer.Encode(c, http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
