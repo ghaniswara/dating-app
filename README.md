@@ -35,6 +35,21 @@ Repository URL : https://github.com/ghaniswara/dating-app
     ```
 4. Run the server using `go run . dev`
 
+## Running the Test
+For the test we're using Ory/Dockertest which allows us to run integration test with dockerized database
+Simply run `go test ./test/*` which will run all the test cases
+If an error eccountered due to port collision, you need to run the test separately for the Auth and Match Cases 
+
+- Auth Test
+    ```
+    `$ go test ./test/auth`
+    ```
+- Match Test
+    ```
+    `$ go test ./test/match`
+    ```
+
+
 ## Functional & Non-Functional Requirements
 ### Functional Requirements
 1. Endpoint to register a new user
@@ -173,6 +188,58 @@ sequenceDiagram
         MatchRepo-->>User: Return profiles
     end
 ```
+
+* GetTodayLikedProfilesIDs
+```mermaid
+sequenceDiagram
+    participant MatchRepo as matchRepo
+    participant Redis
+    participant Database
+
+    matchRepo->>Redis: SMembers(profilesKey)
+    alt Profiles found in Redis
+        Redis-->>matchRepo: return profiles
+        matchRepo-->>User: return profiles
+    else Profiles not found (redis.Nil)
+        Redis-->>matchRepo: return redis.Nil
+        matchRepo->>Database: getLikedProfilesIDs(userID, now)
+        alt Database query fails
+            Database-->>matchRepo: return error
+            matchRepo-->>User: return error
+        else Database query succeeds
+            Database-->>matchRepo: return profiles
+            matchRepo->>Redis: SAdd(profilesKey, profiles)
+            matchRepo->>Redis: Expire(profilesKey, TTL)
+            matchRepo-->>User: return profiles
+        end
+    end
+``` 
+
+* GetTodayLikesCount
+```mermaid
+sequenceDiagram
+    participant MatchRepo as m
+    participant Redis
+    participant Database
+
+    m->>Redis: Get(countKey)
+    alt Count found in Redis
+        Redis-->>m: return count
+        m-->>User: return count
+    else Count not found (redis.Nil)
+        Redis-->>m: return redis.Nil
+        m->>Database: getLikesCount(userID, now)
+        alt Database query fails
+            Database-->>m: return error
+            m-->>User: return error
+        else Database query succeeds
+            Database-->>m: return count
+            m->>Redis: Set(countKey, count, TTL)
+            m-->>User: return count
+        end
+    end
+```
+
 ### Match Usecase
 * Get Dating Profiles
 ```mermaid
@@ -180,7 +247,6 @@ sequenceDiagram
     participant User
     participant MatchUseCase
     participant MatchRepo
-    participant DB
 
     User->>MatchUseCase: GetDatingProfiles(ctx, userID, excludeProfiles, limit)
     MatchUseCase->>MatchRepo: GetTodayLikedProfilesIDs(ctx, userID)
@@ -219,7 +285,7 @@ sequenceDiagram
     alt Error Occurred
         MatchUseCase-->>User: Return error
     else No Error
-        MatchUseCase->>UserRepo: GetUserByID(ctx, likedToUserID)
+        MatchUseCase->>UserRepo: GetUserByID(ctx, userID)
         UserRepo-->>MatchUseCase: Return user or error
         alt Error Occurred
             MatchUseCase-->>User: Return error

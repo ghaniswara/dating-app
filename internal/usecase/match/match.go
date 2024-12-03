@@ -68,7 +68,7 @@ func (m *matchUseCase) SwipeDatingProfile(
 	}
 
 	// TODO: implement premium feature
-	user, err := m.userRepo.GetUserByID(ctx, likedToUserID)
+	user, err := m.userRepo.GetUserByID(ctx, userID)
 
 	if err != nil {
 		return 0, err
