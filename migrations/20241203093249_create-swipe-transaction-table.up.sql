@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS swipe_transactions (
     id SERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    to_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    to_id BIGINT NOT NULL REFERENCES users(id),
     date DATE NOT NULL,
     action SMALLINT NOT NULL,
     timestamp TIMESTAMP NOT NULL,
